@@ -25,7 +25,7 @@ YELLOW  = "#D4A853"  # Warning / neutral — muted gold
 BLUE    = "#6CB6FF"  # Info / links — muted blue
 PURPLE  = "#B392F0"  # A-grade pivot — muted purple
 LABEL   = "#61666A"  # Secondary label — uppercase badges
-SUB     = "#3D4044"  # Tertiary
+SUB     = "#5A5E63"  # Tertiary — readable on dark cards
 TEXT    = "#FFFFFF"  # Primary text
 
 # ---- Page config (MUST be first Streamlit call) ----
