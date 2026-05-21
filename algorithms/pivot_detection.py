@@ -4,7 +4,11 @@ algorithms/pivot_detection.py  —  Swing pivot 检测与 N/V/I 波形识别
 import numpy as np
 import pandas as pd
 
-from shared.utils import _to_date
+try:
+    from shared.utils import _to_date
+except ImportError:
+    def _to_date(x):
+        return x.date() if hasattr(x, 'date') else x
 
 
 def _local_extrema(values: list, order: int, mode: str) -> list:

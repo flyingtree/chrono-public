@@ -4,8 +4,16 @@ import numpy as np
 import pandas as pd
 from datetime import date, timedelta
 from algorithms.pivot_detection import _find_swing_pivots, _detect_n_wave, _detect_v_wave, _detect_i_wave
-from shared.config import _ICHIMOKU_CYCLES, _ICHIMOKU_CYCLES_WEEKLY
-from shared.utils import _to_date
+try:
+    from shared.config import _ICHIMOKU_CYCLES, _ICHIMOKU_CYCLES_WEEKLY
+except ImportError:
+    _ICHIMOKU_CYCLES = {}
+    _ICHIMOKU_CYCLES_WEEKLY = {}
+try:
+    from shared.utils import _to_date
+except ImportError:
+    def _to_date(x):
+        return x.date() if hasattr(x, 'date') else x
 
 def _calc_ichimoku(df: pd.DataFrame) -> pd.DataFrame:
     """Calculate Ichimoku Cloud components (Tenkan, Kijun, Senkou A/B, Chikou)."""
