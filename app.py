@@ -192,35 +192,50 @@ with col_p:
 st.divider()
 
 # =============================================================================
-# Performance cards — 算法绩效核心指标，页面最显眼位置
+# Performance cards — 实盘账户核心数据
 # =============================================================================
-if trade_log:
-    s = trade_log.get("backtest_summary", {})
-    if s:
-        total_ret = s.get("total_return_pct", 0)
-        bh_ret = s.get("buy_hold_return_pct", 0)
-        excess = s.get("excess_return_pct", 0)
+live_summary = state.get("live_summary", {}) if state else {}
+pos_data = state.get("position") if state else None
 
-        c1, c2, c3, c4, c5, c6 = st.columns(6)
-        cards_data = [
-            ("总收益", f"{total_ret:+.1f}%", f"{s.get('period_start','')} → {s.get('period_end','')}",
-             GREEN if total_ret >= 0 else RED),
-            ("买入持有", f"{bh_ret:+.1f}%", f"超额 {excess:+.1f}%",
-             GREEN if excess >= 0 else RED),
-            ("夏普比率", f"{s.get('sharpe',0):.2f}", "风险调整收益", TEXT),
-            ("最大回撤", f"{s.get('max_drawdown_pct',0):.1f}%", "历史最大亏损", RED),
-            ("交易笔数", str(s.get("num_trades", 0)), f"胜率 {s.get('win_rate',0):.0f}% · PF {s.get('profit_factor',0):.1f}", TEXT),
-            ("初始资金", f"${s.get('initial_capital',10000):,.0f}", f"→ ${s.get('final_equity',10000):,.0f}", GREEN),
-        ]
-        for ci, (label, value, sub, cls) in enumerate(cards_data):
-            with [c1, c2, c3, c4, c5, c6][ci]:
-                st.markdown(f"""
-                <div style="background:{CARD};border:1px solid {BORDER};border-radius:8px;padding:12px 14px;">
-                    <div style="font-size:10px;color:{LABEL};text-transform:uppercase;letter-spacing:0.5px;">{label}</div>
-                    <div style="font-size:20px;font-weight:700;margin-top:4px;color:{cls};">{value}</div>
-                    <div style="font-size:10px;color:{SUB};margin-top:2px;">{sub}</div>
-                </div>
-                """, unsafe_allow_html=True)
+equity = live_summary.get("equity", 0)
+cash = live_summary.get("available_cash", 0)
+realized_pnl = live_summary.get("total_pnl", 0)
+closed_n = live_summary.get("closed_trades", 0)
+live_win = live_summary.get("win_rate", 0)
+
+unrealized_usd = (pos_data.get("unrealized_pnl_usd", 0) or 0) if pos_data else 0
+unrealized_pct = (pos_data.get("unrealized_pnl_pct", 0) or 0) if pos_data else 0
+combined_pnl = realized_pnl + unrealized_usd
+
+c1, c2, c3, c4, c5, c6 = st.columns(6)
+cards_data = [
+    ("账户权益", f"${equity:,.0f}", f"Binance Testnet · {state.get('mode','')} 模式" if state else "",
+     TEXT),
+    ("累计盈亏", f"{combined_pnl:+,.0f}",
+     f"已实现 {realized_pnl:+,.0f} + 浮盈 {unrealized_usd:+,.0f}",
+     GREEN if combined_pnl >= 0 else RED),
+    ("当前浮盈", f"{unrealized_usd:+,.0f}",
+     f"{unrealized_pct:+.1f}%" if pos_data else "无持仓",
+     GREEN if unrealized_usd >= 0 else RED),
+    ("已实现盈亏", f"{realized_pnl:+,.0f}",
+     f"已平仓 {closed_n} 笔 · 胜率 {live_win:.0f}%",
+     GREEN if realized_pnl >= 0 else RED),
+    ("可用资金", f"${cash:,.0f}",
+     f"持仓占用 ${equity - cash:,.0f}",
+     BLUE),
+    ("杠杆倍数", f"{state.get('leverage', 1):.1f}x" if state else "1.0x",
+     f"ZEC 现价 ${current_price:,.0f}",
+     TEXT),
+]
+for ci, (label, value, sub, cls) in enumerate(cards_data):
+    with [c1, c2, c3, c4, c5, c6][ci]:
+        st.markdown(f"""
+        <div style="background:{CARD};border:1px solid {BORDER};border-radius:8px;padding:12px 14px;">
+            <div style="font-size:10px;color:{LABEL};text-transform:uppercase;letter-spacing:0.5px;">{label}</div>
+            <div style="font-size:20px;font-weight:700;margin-top:4px;color:{cls};">{value}</div>
+            <div style="font-size:10px;color:{SUB};margin-top:2px;">{sub}</div>
+        </div>
+        """, unsafe_allow_html=True)
 
 # =============================================================================
 # Current position + latest signal
@@ -461,6 +476,29 @@ if trade_log and trade_log.get("equity_curve"):
             <div style="font-size:10px;color:{SUB};margin-top:2px;">
                 {eq[0]['date']} → {eq[-1]['date']} · {len(eq)} 个交易日
             </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+# =============================================================================
+# Backtest — 策略模型历史回测（参考说明，非实盘）
+# =============================================================================
+if trade_log and trade_log.get("backtest_summary"):
+    bs = trade_log["backtest_summary"]
+    with st.expander("📊 策略模型回测说明（历史模拟，非实盘绩效）", expanded=False):
+        st.markdown(f"""
+        <div style="font-size:12px;color:{LABEL};line-height:1.8;">
+            <p>以下为 <strong>zec_trend</strong> 策略在历史数据上的模拟回测结果，仅用于说明策略逻辑的有效性，<strong>不代表实盘交易绩效</strong>。</p>
+            <table style="width:100%;font-size:11px;">
+                <tr><td>回测期间</td><td>{bs.get('period_start','')} → {bs.get('period_end','')}</td></tr>
+                <tr><td>初始资金</td><td>${bs.get('initial_capital',0):,.0f}</td></tr>
+                <tr><td>最终权益</td><td>${bs.get('final_equity',0):,.0f}</td></tr>
+                <tr><td>总收益率</td><td>{bs.get('total_return_pct',0):+.1f}%</td></tr>
+                <tr><td>买入持有</td><td>{bs.get('buy_hold_return_pct',0):+.1f}%</td></tr>
+                <tr><td>超额收益</td><td>{bs.get('excess_return_pct',0):+.1f}%</td></tr>
+                <tr><td>夏普比率</td><td>{bs.get('sharpe',0):.2f}</td></tr>
+                <tr><td>最大回撤</td><td>{bs.get('max_drawdown_pct',0):.1f}%</td></tr>
+                <tr><td>交易笔数</td><td>{bs.get('num_trades',0)} 笔 · 胜率 {bs.get('win_rate',0):.0f}% · PF {bs.get('profit_factor',0):.1f}</td></tr>
+            </table>
         </div>
         """, unsafe_allow_html=True)
 
