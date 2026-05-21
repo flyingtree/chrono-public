@@ -161,11 +161,14 @@ live = fetch_live_price(SYMBOL)
 current_price = live.get("price") or (trade_log.get("current_price", 0) if trade_log else 0)
 price_change = live.get("change_24h_pct") or 0
 
-last_update = ""
+page_time = datetime.now().strftime("%Y-%m-%d %H:%M")
+data_time = ""
 if state:
-    last_update = state.get("generated_at", "")
+    data_time = state.get("generated_at", "")[:16]
 elif trade_log:
-    last_update = trade_log.get("generated_at", "")
+    data_time = trade_log.get("generated_at", "")[:16]
+# Page load time always fresh; data time from JSON
+last_update = f"{page_time} (数据: {data_time})" if data_time else page_time
 
 # =============================================================================
 # Header — ticker + value proposition
