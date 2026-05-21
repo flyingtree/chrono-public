@@ -15,18 +15,18 @@ import streamlit as st
 _PROJECT = Path(__file__).resolve().parent
 _REPORTS = _PROJECT / "reports"
 
-# ---- Color palette (inline — no dependency on theme.py at deploy time) ----
-BG = "#0f1117"
-CARD = "#161b22"
-BORDER = "#21262d"
-GREEN = "#3fb950"
-RED = "#f85149"
-YELLOW = "#d2991d"
-BLUE = "#58a6ff"
-PURPLE = "#a371f7"
-LABEL = "#8b949e"
-SUB = "#484f58"
-TEXT = "#e1e4e8"
+# ---- Color palette: Premium Quant Terminal (see chrono-brand skill §2.8) ----
+BG      = "#0C0D0E"  # Canvas — deep matte carbon
+CARD    = "#141617"  # Surface
+BORDER  = "#1F2224"  # 1px hairline
+GREEN   = "#4ECAA6"  # Long / positive — muted mint
+RED     = "#E06C75"  # Short / negative — muted pink
+YELLOW  = "#D4A853"  # Warning / neutral — muted gold
+BLUE    = "#6CB6FF"  # Info / links — muted blue
+PURPLE  = "#B392F0"  # A-grade pivot — muted purple
+LABEL   = "#61666A"  # Secondary label — uppercase badges
+SUB     = "#3D4044"  # Tertiary
+TEXT    = "#FFFFFF"  # Primary text
 
 # ---- Page config (MUST be first Streamlit call) ----
 st.set_page_config(
@@ -36,68 +36,69 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
-# ---- CSS ----
+# ---- CSS — Premium Quant Terminal (chrono-brand skill §2.8) ----
 st.markdown(f"""<style>
-/* override Streamlit defaults */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+/* ---- Streamlit chrome ---- */
 .stApp {{ background: {BG}; }}
 header[data-testid="stHeader"] {{ background: transparent; }}
 [data-testid="stToolbar"] {{ display: none; }}
 section[data-testid="stSidebar"] {{ display: none; }}
-.stMainBlockContainer {{ padding-top: 1rem; max-width: 1100px; }}
+.stMainBlockContainer {{ padding: 12px 0 0 0; max-width: 1100px; }}
+div[data-testid="stVerticalBlock"] > div {{ gap: 8px; }}
 
-/* ticker */
-.ticker {{ font-size: 11px; color: {LABEL}; letter-spacing: 0.3px; }}
-.price-large {{ font-size: 42px; font-weight: 700; line-height: 1.1; }}
-.price-change {{ font-size: 16px; font-weight: 500; margin-left: 8px; }}
+/* ---- Typography foundation ---- */
+* {{ font-family: 'Inter', 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif; }}
+.mono, .mono *, [data-mono] {{ font-family: 'JetBrains Mono', 'Roboto Mono', 'SF Mono', monospace; }}
 
-/* cards */
-.card-row {{ display: flex; flex-wrap: wrap; gap: 10px; margin: 16px 0; }}
-.card {{ background: {CARD}; border: 1px solid {BORDER}; border-radius: 8px; padding: 14px 16px; min-width: 140px; flex: 1; }}
-.card .label {{ font-size: 10px; color: {LABEL}; text-transform: uppercase; letter-spacing: 0.5px; }}
-.card .value {{ font-size: 20px; font-weight: 700; margin-top: 4px; }}
+/* ---- Ticker / header ---- */
+.ticker {{ font-size: 10px; color: {LABEL}; letter-spacing: 0.05em; text-transform: uppercase; }}
+.price-large {{ font-size: 36px; font-weight: 600; line-height: 1.1; font-family: 'JetBrains Mono', 'Roboto Mono', monospace; }}
+.price-change {{ font-size: 13px; font-weight: 500; margin-left: 8px; font-family: 'JetBrains Mono', 'Roboto Mono', monospace; }}
+
+/* ---- Metric cards ---- */
+.card-row {{ display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }}
+.card {{ background: {CARD}; border: 1px solid {BORDER}; border-radius: 6px; padding: 10px 14px; min-width: 140px; flex: 1; }}
+.card .label {{ font-size: 10px; color: {LABEL}; text-transform: uppercase; letter-spacing: 0.05em; }}
+.card .value {{ font-size: 18px; font-weight: 600; margin-top: 2px; font-family: 'JetBrains Mono', 'Roboto Mono', monospace; }}
 .card .sub {{ font-size: 10px; color: {SUB}; margin-top: 2px; }}
 
-/* tables */
+/* ---- Tables — compact quant style ---- */
 .table-wrap {{ overflow-x: auto; }}
-table {{ width: 100%; border-collapse: collapse; font-size: 12px; background: {CARD}; border: 1px solid {BORDER}; border-radius: 8px; }}
-thead th {{ background: {CARD}; color: {LABEL}; font-weight: 600; text-align: left; padding: 10px 14px; border-bottom: 2px solid {BORDER}; white-space: nowrap; }}
-tbody td {{ padding: 8px 14px; border-bottom: 1px solid {BORDER}; white-space: nowrap; color: {TEXT}; }}
-tbody tr:hover {{ background: #1c2128; }}
+table {{ width: 100%; border-collapse: collapse; font-size: 11px; background: {CARD}; border: 1px solid {BORDER}; border-radius: 6px; }}
+thead th {{ background: {CARD}; color: {LABEL}; font-weight: 500; font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; text-align: left; padding: 8px 12px; border-bottom: 1px solid {BORDER}; white-space: nowrap; }}
+tbody td {{ padding: 7px 12px; border-bottom: 1px solid {BORDER}; white-space: nowrap; color: {TEXT}; font-size: 11px; }}
+tbody tr:hover {{ background: {BG}; }}
+tbody td:first-child, thead th:first-child {{ padding-left: 14px; }}
 
-/* badges */
-.badge {{ display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 600; }}
-.badge-long {{ background: #1b3a2a; color: {GREEN}; }}
-.badge-short {{ background: #3a1b1b; color: {RED}; }}
-.badge-grade-a {{ background: #2a1b3a; color: {PURPLE}; font-size: 10px; padding: 2px 6px; border-radius: 8px; }}
-.badge-signal-buy {{ background: #1b3a2a; color: {GREEN}; font-size: 13px; padding: 4px 12px; border-radius: 6px; }}
-.badge-signal-sell {{ background: #3a1b1b; color: {RED}; font-size: 13px; padding: 4px 12px; border-radius: 6px; }}
-.badge-signal-wait {{ background: #1c2128; color: {LABEL}; font-size: 13px; padding: 4px 12px; border-radius: 6px; border: 1px solid {BORDER}; }}
-.badge-signal-hold {{ background: #1a2f3a; color: {BLUE}; font-size: 13px; padding: 4px 12px; border-radius: 6px; border: 1px solid {BLUE}; }}
+/* ---- Status badge — ghost pill style ---- */
+.badge {{ display: inline-block; padding: 1px 8px; border-radius: 4px; font-size: 10px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.03em; }}
+.badge-long {{ border: 1px solid {GREEN}; color: {GREEN}; }}
+.badge-short {{ border: 1px solid {RED}; color: {RED}; }}
+.badge-grade-a {{ border: 1px solid {PURPLE}; color: {PURPLE}; font-size: 10px; padding: 1px 6px; border-radius: 4px; }}
 
-/* pivot cards */
-.pivot-month {{ background: {CARD}; border: 1px solid {BORDER}; border-radius: 10px; padding: 16px; margin-bottom: 12px; }}
-.pivot-month h3 {{ font-size: 14px; color: {TEXT}; margin: 0 0 10px 0; }}
-.pivot-grid {{ display: flex; flex-wrap: wrap; gap: 8px; }}
-.pivot-card {{ background: #0d1117; border: 1px solid {BORDER}; border-radius: 8px; padding: 10px 14px; font-size: 12px; min-width: 160px; flex: 1; }}
-.pivot-card .date {{ font-weight: 700; color: {TEXT}; font-size: 14px; }}
-.pivot-card .range {{ color: {LABEL}; font-size: 10px; }}
-.pivot-card .meta {{ color: {SUB}; font-size: 10px; margin-top: 4px; }}
+/* ---- Signal badges ---- */
+.badge-signal-buy {{ border: 1px solid {GREEN}; color: {GREEN}; font-size: 11px; padding: 3px 10px; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.03em; font-weight: 500; }}
+.badge-signal-sell {{ border: 1px solid {RED}; color: {RED}; font-size: 11px; padding: 3px 10px; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.03em; font-weight: 500; }}
+.badge-signal-wait {{ border: 1px solid {BORDER}; color: {LABEL}; font-size: 11px; padding: 3px 10px; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.03em; font-weight: 500; }}
+.badge-signal-hold {{ border: 1px solid {BLUE}; color: {BLUE}; font-size: 11px; padding: 3px 10px; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.03em; font-weight: 500; }}
 
-/* CTA section */
-.cta-box {{ background: linear-gradient(135deg, #1a1f35 0%, #161b22 100%); border: 1px solid #30363d; border-radius: 12px; padding: 24px 28px; margin-top: 28px; text-align: center; }}
-.cta-box h3 {{ font-size: 17px; color: {TEXT}; margin: 0 0 8px 0; }}
-.cta-box p {{ color: {LABEL}; font-size: 12px; margin-bottom: 14px; }}
-.cta-btn {{ display: inline-block; background: {GREEN}; color: #000; padding: 10px 24px; border-radius: 8px; font-weight: 700; font-size: 14px; text-decoration: none; }}
-.cta-btn:hover {{ opacity: 0.9; }}
+/* ---- Section headers — uppercase label style ---- */
+.section-title {{ font-size: 11px; font-weight: 500; color: {LABEL}; text-transform: uppercase; letter-spacing: 0.05em; margin: 20px 0 8px; }}
 
-/* section headers */
-.section-title {{ font-size: 14px; font-weight: 600; color: {LABEL}; text-transform: uppercase; letter-spacing: 0.5px; margin: 24px 0 10px; }}
+/* ---- CTA — flat ghost style ---- */
+.cta-box {{ background: {CARD}; border: 1px solid {BORDER}; border-radius: 6px; padding: 20px 24px; margin-top: 24px; text-align: center; }}
+.cta-box h3 {{ font-size: 13px; color: {TEXT}; margin: 0 0 6px 0; font-weight: 600; }}
+.cta-box p {{ color: {LABEL}; font-size: 11px; margin-bottom: 12px; }}
+.cta-btn {{ display: inline-block; border: 1px solid {GREEN}; color: {GREEN}; padding: 7px 18px; border-radius: 4px; font-weight: 500; font-size: 11px; text-decoration: none; text-transform: uppercase; letter-spacing: 0.03em; transition: opacity 0.15s; }}
+.cta-btn:hover {{ opacity: 0.8; }}
 
-/* footer */
-.footer {{ font-size: 10px; color: {SUB}; margin-top: 32px; text-align: center; padding-bottom: 20px; }}
+/* ---- Footer ---- */
+.footer {{ font-size: 10px; color: {SUB}; margin-top: 28px; text-align: center; padding-bottom: 16px; }}
 .footer a {{ color: {BLUE}; text-decoration: none; }}
 
-/* green/red utility text */
+/* ---- Utility ---- */
 .g {{ color: {GREEN}; }}
 .r {{ color: {RED}; }}
 .y {{ color: {YELLOW}; }}
@@ -173,8 +174,8 @@ col_h, col_p = st.columns([2, 1])
 with col_h:
     st.markdown(
         '<p class="ticker">🪐 CHRONO · Planetary Journeys: The Market Timing Tool</p>'
-        '<p style="font-size:28px;font-weight:700;color:#f0f6fc;margin:2px 0 4px;">Zcash 趋势跟踪策略</p>'
-        '<p style="font-size:12px;color:#8b949e;">Markets are not a random walk — they resonate with cosmic cycles.</p>',
+       f'<p style="font-size:22px;font-weight:600;color:{TEXT};margin:2px 0 4px;">Zcash 趋势跟踪策略</p>'
+       f'<p style="font-size:11px;color:{LABEL};">Markets are not a random walk — they resonate with cosmic cycles.</p>',
         unsafe_allow_html=True,
     )
 
@@ -369,7 +370,7 @@ if pf and pf.get("a_grade"):
             price_zone = z.get("price_zone", "")
             triggers = z.get("convergence_desc", "")
             grade = z.get("grade", "")
-            grade_badge = '<span class="badge badge-grade-a">A级</span>' if grade == "A" else '<span class="badge badge-grade-a" style="background:#1c2128;">B级</span>'
+            grade_badge = '<span class="badge badge-grade-a">A级</span>' if grade == "A" else f'<span class="badge badge-grade-a" style="border-color:{LABEL};color:{LABEL};">B级</span>'
 
             table_rows += f"""
             <tr>
@@ -432,9 +433,9 @@ if trade_log and trade_log.get("live_trades"):
         exit_price_str = f"${t['exit_price']:,.2f}" if t.get("exit_price") else "—"
         is_open = not t.get("exit_price")
         if is_open:
-            exit_cell = '<span style="color:#8b949e;font-size:10px;">持仓中</span>'
+            exit_cell = '<span style="color:#61666A;font-size:10px;">持仓中</span>'
         else:
-            exit_cell = t.get("exit_reason") or '<span style="color:#8b949e;font-size:10px;">—</span>'
+            exit_cell = t.get("exit_reason") or '<span style="color:#61666A;font-size:10px;">—</span>'
 
         rows += f"""
         <tr>
@@ -515,10 +516,10 @@ if trade_log and trade_log.get("backtest_summary"):
 # About — CHRONO 背景说明
 # =============================================================================
 st.markdown(f"""
-<div style="background:linear-gradient(135deg, #1a1f35 0%, #161b22 100%); border:1px solid #30363d; border-radius:12px; padding:20px 24px; margin-bottom:16px;">
-    <p style="color:{TEXT}; font-size:12px; line-height:1.8; margin:0;">
+<div style="background:{CARD}; border:1px solid {BORDER}; border-radius:6px; padding:16px 20px; margin-bottom:12px;">
+    <p style="color:{TEXT}; font-size:11px; line-height:1.8; margin:0;">
         We believe financial markets are not a random walk. Market movements are beautifully synchronized and in perfect resonance with cosmic cycles, forming a harmonic fractal across time.<br><br>
-        <strong style="color:#f0f6fc;">CHRONO</strong> is a professional-grade market timing tool designed to help traders decode these geometric reflections. By translating complex cyclical frequencies into precise, actionable timing data, we empower your financial trading and elevate your market strategies. Welcome to our shared journey of discovery.
+        <strong style="color:{TEXT};">CHRONO</strong> is a professional-grade market timing tool designed to help traders decode these geometric reflections. By translating complex cyclical frequencies into precise, actionable timing data, we empower your financial trading and elevate your market strategies. Welcome to our shared journey of discovery.
     </p>
 </div>
 """, unsafe_allow_html=True)
