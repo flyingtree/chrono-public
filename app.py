@@ -498,12 +498,8 @@ if pc and len(pc) >= 2:
         )
         # Compute and display final returns
         if "Buy & Hold" in df.columns and "CHRONO" in df.columns:
-            bh_start = df["Buy & Hold"].iloc[0]
-            bh_end = df["Buy & Hold"].iloc[-1]
-            st_start = df["CHRONO"].iloc[0]
-            st_end = df["CHRONO"].iloc[-1]
-            bh_ret = (bh_end / bh_start - 1) * 100
-            st_ret = (st_end / st_start - 1) * 100
+            bh_ret = df["Buy & Hold"].iloc[-1]
+            st_ret = df["CHRONO"].iloc[-1]
             c1, c2 = st.columns(2)
             with c1:
                 st.markdown(f"""
