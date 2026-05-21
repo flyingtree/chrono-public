@@ -24,7 +24,7 @@ RED     = "#E06C75"  # Short / negative — muted pink
 YELLOW  = "#D4A853"  # Warning / neutral — muted gold
 BLUE    = "#6CB6FF"  # Info / links — muted blue
 PURPLE  = "#B392F0"  # A-grade pivot — muted purple
-LABEL   = "#61666A"  # Secondary label — uppercase badges
+LABEL   = "#8A8F93"  # Secondary label — readable on dark bg
 SUB     = "#5A5E63"  # Tertiary — readable on dark cards
 TEXT    = "#FFFFFF"  # Primary text
 
@@ -433,9 +433,9 @@ if trade_log and trade_log.get("live_trades"):
         exit_price_str = f"${t['exit_price']:,.2f}" if t.get("exit_price") else "—"
         is_open = not t.get("exit_price")
         if is_open:
-            exit_cell = '<span style="color:#61666A;font-size:10px;">持仓中</span>'
+            exit_cell = '<span style="color:#8A8F93;font-size:10px;">持仓中</span>'
         else:
-            exit_cell = t.get("exit_reason") or '<span style="color:#61666A;font-size:10px;">—</span>'
+            exit_cell = t.get("exit_reason") or '<span style="color:#8A8F93;font-size:10px;">—</span>'
 
         rows += f"""
         <tr>
