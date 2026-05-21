@@ -6,7 +6,7 @@ Auto-refreshes every 60 seconds.  Deployed to Streamlit Community Cloud.
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
 
 import pandas as pd
@@ -106,240 +106,23 @@ tbody td:first-child, thead th:first-child {{ padding-left: 14px; }}
 
 
 # =============================================================================
-# Data loading — yfinance 优先 (Streamlit Cloud US-friendly) + Binance 备选
+# Data loading
 # =============================================================================
 
-def _bars_from_yf(symbol: str, period: str, interval: str) -> pd.DataFrame | None:
-    """Fetch OHLCV from yfinance. Returns DataFrame with DatetimeIndex or None."""
-    try:
-        import yfinance as yf
-        tkr = yf.Ticker(symbol)
-        df = tkr.history(period=period, interval=interval)
-        if df is None or df.empty:
-            return None
-        df = df[["Open","High","Low","Close","Volume"]].copy()
-        return df
-    except Exception:
+@st.cache_data(ttl=300, show_spinner=False)
+def load_public_state(symbol: str) -> dict | None:
+    """Load public state JSON. Returns None if not found."""
+    fname = symbol.split("-")[0].lower() + "_public_state.json"
+    path = _REPORTS / fname
+    if not path.exists():
         return None
+    with open(path, encoding="utf-8") as f:
+        return json.load(f)
 
 
-def _bars_from_ccxt(symbol: str, timeframe: str, limit: int) -> pd.DataFrame | None:
-    """Fetch OHLCV from Binance CCXT. Returns DataFrame with DatetimeIndex or None."""
-    try:
-        import ccxt
-        ex = ccxt.binance({'enableRateLimit': True})
-        ticker = symbol.replace("-USD", "/USDT:USDT")
-        raw = ex.fetch_ohlcv(ticker, timeframe, limit=limit)
-        if not raw:
-            return None
-        df = pd.DataFrame(raw, columns=['timestamp','Open','High','Low','Close','Volume'])
-        df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
-        df.set_index('timestamp', inplace=True)
-        return df.astype(float)
-    except Exception:
-        return None
-
-
-@st.cache_data(ttl=60, show_spinner=False)
-def fetch_live_price(symbol: str) -> dict:
-    """Live price + 24h change — yfinance first, Binance fallback."""
-    # yfinance
-    df = _bars_from_yf(symbol, period="2d", interval="1d")
-    if df is not None and len(df) >= 2:
-        price = float(df["Close"].iloc[-1])
-        prev = float(df["Close"].iloc[-2])
-        return {"price": round(price, 2), "change_24h_pct": round((price / prev - 1) * 100, 2)}
-
-    # Binance fallback
-    df = _bars_from_ccxt(symbol, "4h", limit=2)
-    if df is not None and len(df) >= 2:
-        price = float(df["Close"].iloc[-1])
-        prev = float(df["Close"].iloc[-2])
-        return {"price": round(price, 2), "change_24h_pct": round((price / prev - 1) * 100, 2)}
-
-    return {}
-
-
-@st.cache_data(ttl=300, show_spinner="正在拉取实时数据...")
-def fetch_strategy_data(symbol: str):
-    """Fetch bars + compute Ichimoku cloud state + signal.
-
-    yfinance 优先 (works from US-based Streamlit Cloud).
-    Uses 1h bars resampled to 4H for Ichimoku, 1d bars for exit confirmation.
-    Falls back to Binance CCXT if yfinance fails.
-    """
-    import numpy as np
-    from algorithms.ichimoku import _calc_ichimoku
-
-    bars_4h = None
-    bars_1d = None
-
-    # ---- Try yfinance first ----
-    # 1h bars → resample to 4H (~60 days of hourly needed for 300 4H bars)
-    df_1h = _bars_from_yf(symbol, period="60d", interval="1h")
-    if df_1h is not None and len(df_1h) >= 50:
-        bars_4h = df_1h.resample("4h").agg({
-            "Open": "first", "High": "max", "Low": "min", "Close": "last", "Volume": "sum"
-        }).dropna()
-        if len(bars_4h) < 52:
-            bars_4h = None
-
-    # Daily bars from yfinance
-    df_1d = _bars_from_yf(symbol, period="6mo", interval="1d")
-    if df_1d is not None and len(df_1d) >= 52:
-        bars_1d = df_1d
-
-    # ---- Binance fallback ----
-    if bars_4h is None:
-        bars_4h = _bars_from_ccxt(symbol, "4h", limit=300)
-    if bars_1d is None:
-        bars_1d = _bars_from_ccxt(symbol, "1d", limit=120)
-
-    if bars_4h is None or len(bars_4h) < 52:
-        return {"error": "无法获取K线数据 — 请稍后刷新重试"}
-
-    close_4h = bars_4h["Close"]
-    high_4h = bars_4h["High"]
-    low_4h = bars_4h["Low"]
-    current_price = float(close_4h.iloc[-1])
-    current_idx = len(bars_4h) - 1
-
-    # 4H Ichimoku
-    ichi_4h = _calc_ichimoku(bars_4h)
-    if ichi_4h is None or len(ichi_4h) < 52:
-        return {"error": "insufficient_4h_data"}
-
-    tk = float(ichi_4h["tenkan_sen"].iloc[-1])
-    kj = float(ichi_4h["kijun_sen"].iloc[-1])
-    sa = float(ichi_4h["senkou_span_a"].iloc[-1])
-    sb = float(ichi_4h["senkou_span_b"].iloc[-1])
-    cloud_top = max(sa, sb)
-    cloud_bottom = min(sa, sb)
-    above_cloud = current_price > cloud_top
-    below_cloud = current_price < cloud_bottom
-    in_cloud = not above_cloud and not below_cloud
-
-    cloud_4h = "above" if above_cloud else ("below" if below_cloud else "in")
-
-    # TK stability (3+ bars)
-    tk_stable = (
-        tk > kj
-        and float(ichi_4h["tenkan_sen"].iloc[-2]) > float(ichi_4h["kijun_sen"].iloc[-2])
-        and float(ichi_4h["tenkan_sen"].iloc[-3]) > float(ichi_4h["kijun_sen"].iloc[-3])
-    )
-
-    # Chikou
-    chikou_bullish = True
-    if current_idx >= 26:
-        chikou_val = float(close_4h.iloc[current_idx - 26])
-        chikou_bullish = current_price > chikou_val
-
-    # Daily Ichimoku (exit confirmation)
-    cloud_1d = None
-    daily_below = False
-    daily_above = False
-    if bars_1d is not None and len(bars_1d) >= 52:
-        daily_ichi = _calc_ichimoku(bars_1d)
-        if daily_ichi is not None and len(daily_ichi) >= 52:
-            d_close = float(bars_1d["Close"].iloc[-1])
-            d_sa = float(daily_ichi["senkou_span_a"].iloc[-1])
-            d_sb = float(daily_ichi["senkou_span_b"].iloc[-1])
-            if d_close > max(d_sa, d_sb):
-                cloud_1d = "above"
-                daily_above = True
-            elif d_close < min(d_sa, d_sb):
-                cloud_1d = "below"
-                daily_below = True
-            else:
-                cloud_1d = "in"
-
-    # Signal logic
-    signal = None
-    if below_cloud:
-        daily_confirmed = True if bars_1d is None else daily_below
-        if daily_confirmed:
-            signal = {"direction": "CLOSE", "strength": 1.0, "price": round(current_price, 2),
-                      "reason": "cloud_breakdown"}
-    elif above_cloud and tk_stable and chikou_bullish:
-        signal = {"direction": "LONG", "strength": 0.85, "price": round(current_price, 2),
-                  "reason": "cloud_breakout"}
-    elif above_cloud and tk_stable:
-        signal = {"direction": "LONG", "strength": 0.65, "price": round(current_price, 2),
-                  "reason": "trend_continuation"}
-
-    return {
-        "signal": signal,
-        "cloud_4h": cloud_4h,
-        "cloud_1d": cloud_1d,
-        "tenkan": round(tk, 2),
-        "kijun": round(kj, 2),
-        "cloud_top": round(cloud_top, 2),
-        "cloud_bottom": round(cloud_bottom, 2),
-        "below_cloud": below_cloud,
-        "above_cloud": above_cloud,
-        "in_cloud": in_cloud,
-        "tk_stable": tk_stable,
-        "chikou_bullish": chikou_bullish,
-        "current_price": current_price,
-        "bar_time": str(bars_4h.index[-1]),
-    }
-
-
-@st.cache_data(ttl=3600, show_spinner="正在计算 Gann Pivot 预测...")
-def fetch_pivot_forecast(symbol: str):
-    """Compute Gann pivot forecast — yfinance daily bars first, Binance fallback."""
-    from algorithms.pivot_detection import _local_extrema
-    from gann_pivot_scorer import Pivot, scan_future_pivots
-
-    bars = _bars_from_yf(symbol, period="1y", interval="1d")
-    if bars is None or len(bars) < 100:
-        bars = _bars_from_ccxt(symbol, "1d", limit=365)
-
-    if bars is None or len(bars) < 100:
-        return None
-
-    high_vals = bars["High"].tolist()
-    low_vals = bars["Low"].tolist()
-    high_idx = _local_extrema(high_vals, order=5, mode="high")
-    low_idx = _local_extrema(low_vals, order=5, mode="low")
-
-    pivots = []
-    for i in high_idx:
-        pivots.append(Pivot(date=bars.index[i].date(), price=float(bars["High"].iloc[i]), pivot_type="HIGH"))
-    for i in low_idx:
-        pivots.append(Pivot(date=bars.index[i].date(), price=float(bars["Low"].iloc[i]), pivot_type="LOW"))
-
-    start_date = bars.index[-1].date()
-    zones = scan_future_pivots(
-        pivots=pivots, start_date=start_date, days_ahead=365,
-        cluster_days=4, max_zone_width=10, grade_a=80, grade_b=55,
-    )
-
-    a_grade = []
-    b_grade = []
-    for z in zones:
-        d = {
-            "peak_date": str(z.peak_date),
-            "date_range": (str(z.date_range[0]), str(z.date_range[1])),
-            "grade": z.grade,
-            "score": round(z.score, 1),
-            "time_score": round(z.time_score, 1),
-            "price_zone": (round(z.price_zone[0], 2) if z.price_zone[0] else 0,
-                           round(z.price_zone[1], 2) if z.price_zone[1] else 0),
-            "convergence_desc": z.convergence_desc or "",
-            "triggered": z.triggered or [],
-        }
-        if z.grade == "A":
-            a_grade.append(d)
-        elif z.grade == "B":
-            b_grade.append(d)
-
-    return {"a_grade": a_grade, "b_grade": b_grade, "pivot_count": len(pivots)}
-
-
-@st.cache_data(ttl=600, show_spinner=False)
+@st.cache_data(ttl=300, show_spinner=False)
 def load_trade_log(symbol: str) -> dict | None:
-    """Load trade log JSON (optional — only needed for historical trades)."""
+    """Load trade log JSON."""
     fname = symbol.split("-")[0].lower() + "_trade_log.json"
     path = _REPORTS / fname
     if not path.exists():
@@ -348,19 +131,38 @@ def load_trade_log(symbol: str) -> dict | None:
         return json.load(f)
 
 
+@st.cache_data(ttl=120, show_spinner=False)
+def fetch_live_price(symbol: str) -> dict:
+    """Fetch live price + 24h change from yfinance."""
+    try:
+        import yfinance as yf
+        tkr = yf.Ticker(symbol)
+        hist = tkr.history(period="2d")
+        if hist is None or len(hist) < 2:
+            return {}
+        close = hist["Close"]
+        price = float(close.iloc[-1])
+        prev = float(close.iloc[-2])
+        change_pct = (price / prev - 1) * 100
+        return {"price": round(price, 2), "change_24h_pct": round(change_pct, 2)}
+    except Exception:
+        return {}
+
+
 # =============================================================================
 # Load data
 # =============================================================================
 SYMBOL = "ZEC-USD"
-live = fetch_live_price(SYMBOL)
-strategy_data = fetch_strategy_data(SYMBOL)
+state = load_public_state(SYMBOL)
 trade_log = load_trade_log(SYMBOL)
-pivot_forecast = fetch_pivot_forecast(SYMBOL)
+live = fetch_live_price(SYMBOL)
 
-current_price = live.get("price") or strategy_data.get("current_price", 0)
+# Merge live price with stored data
+current_price = live.get("price") or (trade_log.get("current_price", 0) if trade_log else 0)
 price_change = live.get("change_24h_pct") or 0
-page_time = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
-last_update = page_time
+
+page_time = datetime.now().strftime("%Y-%m-%d %H:%M")
+last_update = f"{page_time} (价格实时 · 交易记录来自最近回测)"
 
 # =============================================================================
 # Header — ticker + value proposition
@@ -389,51 +191,40 @@ with col_p:
 st.divider()
 
 # =============================================================================
-# Performance cards — 实时市场数据 + 策略信号
+# Performance cards — 实盘账户核心数据
 # =============================================================================
-sig = strategy_data.get("signal")
-cloud_4h = strategy_data.get("cloud_4h", "?")
-cloud_1d = strategy_data.get("cloud_1d")
-tk = strategy_data.get("tenkan", 0)
-kj = strategy_data.get("kijun", 0)
-cloud_top = strategy_data.get("cloud_top", 0)
-cloud_bottom = strategy_data.get("cloud_bottom", 0)
-tk_stable = strategy_data.get("tk_stable", False)
-chikou_bullish = strategy_data.get("chikou_bullish", False)
+live_summary = state.get("live_summary", {}) if state else {}
+pos_data = state.get("position") if state else None
 
-cloud_label = {"above": "云上 ☁️", "below": "云下 ☁️", "in": "云中 ☁️"}.get(cloud_4h, cloud_4h)
-cloud_1d_label = {"above": "日线云上", "below": "日线云下", "in": "日线云中"}.get(cloud_1d, str(cloud_1d)) if cloud_1d else ""
+equity = live_summary.get("equity", 0)
+cash = live_summary.get("available_cash", 0)
+realized_pnl = live_summary.get("total_pnl", 0)
+closed_n = live_summary.get("closed_trades", 0)
+live_win = live_summary.get("win_rate", 0)
 
-# Backtest summary from JSON (optional)
-bs = trade_log.get("backtest_summary") if trade_log else None
-
-# Build performance cards from live strategy data + optional backtest
-tk_status = "金叉 ↑" if tk_stable else ("死叉 ↓" if (tk < kj) else "缠绕 —")
-tk_color = GREEN if tk_stable else (RED if (tk < kj) else YELLOW)
-ichi_4h_label = {"above": "云上 ☁️", "below": "云下 ☁️", "in": "云中 ☁️"}.get(cloud_4h, cloud_4h)
-ichi_4h_color = GREEN if cloud_4h == "above" else (RED if cloud_4h == "below" else YELLOW)
-d_cloud_label = cloud_1d_label if cloud_1d_label else "—"
+unrealized_usd = (pos_data.get("unrealized_pnl_usd", 0) or 0) if pos_data else 0
+unrealized_pct = (pos_data.get("unrealized_pnl_pct", 0) or 0) if pos_data else 0
+combined_pnl = realized_pnl + unrealized_usd
 
 c1, c2, c3, c4, c5, c6 = st.columns(6)
 cards_data = [
-    ("ZEC 现价", f"${current_price:,.2f}",
-     f"24h {price_change:+.2f}% · 4H Bar {strategy_data.get('bar_time','')[:16]}",
+    ("账户权益", f"${equity:,.0f}", f"Binance Testnet · {state.get('mode','')} 模式" if state else "",
      TEXT),
-    ("4H 一目均衡", ichi_4h_label,
-     f"Tenkan ${tk:,.2f} · Kijun ${kj:,.2f}",
-     ichi_4h_color),
-    ("TK 交叉", tk_status,
-     f"云顶 ${cloud_top:,.2f} · 云底 ${cloud_bottom:,.2f}",
-     tk_color),
-    ("日线确认", d_cloud_label,
-     f"Chikou {'看涨' if chikou_bullish else '看跌'}",
-     GREEN if cloud_1d == "above" else (RED if cloud_1d == "below" else YELLOW)),
-    ("回测收益", f"{bs['total_return_pct']:+.1f}%" if bs else "—",
-     f"夏普 {bs['sharpe']:.2f}" if bs else "运行脚本生成",
-     GREEN if (bs and bs.get('total_return_pct', 0) >= 0) else RED),
-    ("胜率 / PF", f"{bs['win_rate']:.0f}% · {bs['profit_factor']:.1f}" if bs else "—",
-     f"{bs['num_trades']} 笔交易" if bs else "",
-     GREEN if (bs and bs.get('win_rate', 0) >= 50) else YELLOW),
+    ("累计盈亏", f"{combined_pnl:+,.0f}",
+     f"已实现 {realized_pnl:+,.0f} + 浮盈 {unrealized_usd:+,.0f}",
+     GREEN if combined_pnl >= 0 else RED),
+    ("当前浮盈", f"{unrealized_usd:+,.0f}",
+     f"{unrealized_pct:+.1f}%" if pos_data else "无持仓",
+     GREEN if unrealized_usd >= 0 else RED),
+    ("已实现盈亏", f"{realized_pnl:+,.0f}",
+     f"已平仓 {closed_n} 笔 · 胜率 {live_win:.0f}%",
+     GREEN if realized_pnl >= 0 else RED),
+    ("可用资金", f"${cash:,.0f}",
+     f"持仓占用 ${equity - cash:,.0f}",
+     BLUE),
+    ("杠杆倍数", f"{state.get('leverage', 1):.1f}x" if state else "1.0x",
+     f"ZEC 现价 ${current_price:,.0f}",
+     TEXT),
 ]
 for ci, (label, value, sub, cls) in enumerate(cards_data):
     with [c1, c2, c3, c4, c5, c6][ci]:
@@ -446,54 +237,75 @@ for ci, (label, value, sub, cls) in enumerate(cards_data):
         """, unsafe_allow_html=True)
 
 # =============================================================================
-# Market structure + latest signal
+# Current position + latest signal
 # =============================================================================
-col_mkt, col_sig = st.columns([1.5, 1])
+pos = state.get("position") if state else None
+col_pos, col_sig = st.columns([2.2, 1])
 
-with col_mkt:
-    st.markdown('<div class="section-title">🏗️ 4H 市场结构</div>', unsafe_allow_html=True)
-    # Build Ichimoku component status
-    tk_kj_status = "TK 金叉" if tk_stable else ("TK 死叉" if (tk < kj) else "TK 缠绕")
-    chikou_status = "Chikou 看涨" if chikou_bullish else "Chikou 看跌"
-    cloud_status = {"above": "价格在云上方 → 多头区域", "below": "价格在云下方 → 空头区域", "in": "价格在云中 → 震荡区域"}.get(cloud_4h, "—")
-
-    ichi_rows = f"""
-    <tr><td style="color:{LABEL};">Tenkan-sen (转换线)</td><td style="font-family:'JetBrains Mono',monospace;">${tk:,.2f}</td></tr>
-    <tr><td style="color:{LABEL};">Kijun-sen (基准线)</td><td style="font-family:'JetBrains Mono',monospace;">${kj:,.2f}</td></tr>
-    <tr><td style="color:{LABEL};">Senkou Span A (先行A)</td><td style="font-family:'JetBrains Mono',monospace;">${cloud_top:,.2f}</td></tr>
-    <tr><td style="color:{LABEL};">Senkou Span B (先行B)</td><td style="font-family:'JetBrains Mono',monospace;">${cloud_bottom:,.2f}</td></tr>
-    <tr><td style="color:{LABEL};">{tk_kj_status}</td><td style="color:{tk_color};">{tk_kj_status}</td></tr>
-    <tr><td style="color:{LABEL};">{chikou_status}</td><td style="color:{GREEN if chikou_bullish else RED};">{chikou_status}</td></tr>
-    <tr><td style="color:{LABEL};">云层状态</td><td style="color:{ichi_4h_color};">{cloud_status}</td></tr>
-    """
-    if cloud_1d:
-        d_status = {"above": "日线多头", "below": "日线空头", "in": "日线震荡"}.get(cloud_1d, "")
-        ichi_rows += f"""
-    <tr><td style="color:{LABEL};">日线确认</td><td style="color:{GREEN if cloud_1d=='above' else (RED if cloud_1d=='below' else YELLOW)};">{d_status}</td></tr>
-    """
-    st.markdown(f"""
-    <div class="table-wrap">
-    <table>
-        <thead><tr><th>指标</th><th>数值</th></tr></thead>
-        <tbody>{ichi_rows}</tbody>
-    </table>
-    </div>
-    """, unsafe_allow_html=True)
+with col_pos:
+    st.markdown('<div class="section-title">📌 当前持仓</div>', unsafe_allow_html=True)
+    if pos and pos.get("direction"):
+        upnl_usd = pos.get("unrealized_pnl_usd", 0) or 0
+        upnl_pct = pos.get("unrealized_pnl_pct", 0) or 0
+        pnl_color = GREEN if upnl_usd >= 0 else RED
+        pnl_sign = "+" if upnl_usd >= 0 else ""
+        dir_badge = "badge-long" if pos["direction"] == "LONG" else "badge-short"
+        pos_row = f"""
+        <tr>
+            <td>{pos.get("symbol", SYMBOL)}</td>
+            <td><span class="badge {dir_badge}">{pos["direction"]}</span></td>
+            <td>{pos.get("quantity", 0)}</td>
+            <td>${pos["entry_price"]:,.2f}</td>
+            <td>${pos["current_price"]:,.2f}</td>
+            <td style="font-size:10px;">{pos.get("entry_reason", "—")}</td>
+            <td style="color:{pnl_color};font-weight:600;">{pnl_sign}${abs(upnl_usd):,.2f}</td>
+            <td style="color:{pnl_color};">{pnl_sign}{upnl_pct:.2f}%</td>
+        </tr>"""
+        st.markdown(f"""
+        <div class="table-wrap">
+        <table>
+            <thead><tr>
+                <th>品种</th><th>方向</th><th>数量</th><th>均价</th><th>现价</th><th>入场依据</th><th>浮盈 $</th><th>浮盈 %</th>
+            </tr></thead>
+            <tbody>{pos_row}</tbody>
+        </table>
+        </div>
+        """, unsafe_allow_html=True)
+    else:
+        st.markdown(f"""
+        <div style="background:{CARD};border:1px solid {BORDER};border-radius:8px;padding:20px;text-align:center;">
+            <div style="color:{SUB};font-size:14px;">暂无持仓</div>
+            <div style="color:{SUB};font-size:11px;margin-top:4px;">等待下一个 Gann Pivot 信号</div>
+        </div>
+        """, unsafe_allow_html=True)
 
 with col_sig:
-    st.markdown('<div class="section-title">🔔 实时策略信号</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">🔔 最新策略信号</div>', unsafe_allow_html=True)
+    sig = state.get("latest_signal") if state else None
     if sig:
         sig_dir = sig["direction"]
-        if sig_dir == "LONG":
+        has_pos = pos and pos.get("direction")
+        pos_dir = pos.get("direction") if has_pos else None
+
+        if has_pos and sig_dir == pos_dir:
+            badge = "badge-signal-hold"
+            txt = "继续持有"
+            action_note = f"已于 {pos.get('entry_time','')[:10] if pos.get('entry_time') else '—'} 入场，与信号方向一致"
+        elif sig_dir == "LONG":
             badge = "badge-signal-buy"
             txt = "买入做多"
-        elif sig_dir == "SHORT" or sig_dir == "CLOSE":
+            action_note = ""
+        elif sig_dir == "SHORT":
             badge = "badge-signal-sell"
-            txt = "平仓/做空"
+            txt = "卖出做空"
+            action_note = ""
         else:
             badge = "badge-signal-wait"
             txt = "观望等待"
-
+            action_note = ""
+        hold_note = ""
+        if action_note:
+            hold_note = f'<div style="margin-top:6px;font-size:11px;color:{BLUE};">{action_note}</div>'
         st.markdown(f"""
         <div style="background:{CARD};border:1px solid {BORDER};border-radius:8px;padding:16px;">
             <div style="display:flex;align-items:center;gap:12px;">
@@ -502,15 +314,16 @@ with col_sig:
             </div>
             <div style="margin-top:10px;font-size:12px;color:{LABEL};">
                 依据: {sig.get('reason','—').replace('_',' ').title()}<br>
-                触发价: ${sig['price']:,.2f} · 4H Bar: {strategy_data.get('bar_time','')[:16]}
+                触发价: ${sig['price']:,.2f} · {sig.get('timestamp','')[:10]}
             </div>
+            {hold_note}
         </div>
         """, unsafe_allow_html=True)
     else:
         st.markdown(f"""
         <div style="background:{CARD};border:1px solid {BORDER};border-radius:8px;padding:20px;text-align:center;">
             <div style="color:{SUB};font-size:14px;">无活跃信号</div>
-            <div style="color:{SUB};font-size:11px;margin-top:4px;">等待云层突破或 TK 金叉确认</div>
+            <div style="color:{SUB};font-size:11px;margin-top:4px;">等待市场条件触发</div>
         </div>
         """, unsafe_allow_html=True)
 
@@ -518,7 +331,7 @@ with col_sig:
 # Pivot forecast — 表格形式，未来 2 个月，完整数据付费获取
 # =============================================================================
 st.markdown('<div class="section-title">🗓️ 未来 Gann Pivot 转折日预测（未来2个月）</div>', unsafe_allow_html=True)
-pf = pivot_forecast
+pf = state.get("pivot_forecast") if state else None
 if pf and pf.get("a_grade"):
     a_zones = pf["a_grade"]
     # Collect all A-grade zones, keep only first 2 months
@@ -594,8 +407,8 @@ if pf and pf.get("a_grade"):
 else:
     st.markdown(f"""
     <div style="background:{CARD};border:1px solid {BORDER};border-radius:8px;padding:20px;text-align:center;">
-        <div style="color:{SUB};font-size:14px;">Pivot 预测计算中...</div>
-        <div style="color:{SUB};font-size:11px;margin-top:4px;">如持续显示此信息，请检查 Binance API 连接</div>
+        <div style="color:{SUB};font-size:14px;">Pivot 预测数据暂未生成</div>
+        <div style="color:{SUB};font-size:11px;margin-top:4px;">运行 scripts/update_trade_data.py 以更新</div>
     </div>
     """, unsafe_allow_html=True)
 
