@@ -72,6 +72,7 @@ tbody tr:hover {{ background: #1c2128; }}
 .badge-signal-buy {{ background: #1b3a2a; color: {GREEN}; font-size: 13px; padding: 4px 12px; border-radius: 6px; }}
 .badge-signal-sell {{ background: #3a1b1b; color: {RED}; font-size: 13px; padding: 4px 12px; border-radius: 6px; }}
 .badge-signal-wait {{ background: #1c2128; color: {LABEL}; font-size: 13px; padding: 4px 12px; border-radius: 6px; border: 1px solid {BORDER}; }}
+.badge-signal-hold {{ background: #1a2f3a; color: {BLUE}; font-size: 13px; padding: 4px 12px; border-radius: 6px; border: 1px solid {BLUE}; }}
 
 /* pivot cards */
 .pivot-month {{ background: {CARD}; border: 1px solid {BORDER}; border-radius: 10px; padding: 16px; margin-bottom: 12px; }}
@@ -240,11 +241,11 @@ for ci, (label, value, sub, cls) in enumerate(cards_data):
 # =============================================================================
 # Current position + latest signal
 # =============================================================================
+pos = state.get("position") if state else None
 col_pos, col_sig = st.columns(2)
 
 with col_pos:
     st.markdown('<div class="section-title">📌 当前持仓</div>', unsafe_allow_html=True)
-    pos = state.get("position") if state else None
     if pos and pos.get("direction"):
         upnl_usd = pos.get("unrealized_pnl_usd", 0) or 0
         upnl_pct = pos.get("unrealized_pnl_pct", 0) or 0
@@ -284,15 +285,29 @@ with col_sig:
     st.markdown('<div class="section-title">🔔 最新策略信号</div>', unsafe_allow_html=True)
     sig = state.get("latest_signal") if state else None
     if sig:
-        if sig["direction"] == "LONG":
+        sig_dir = sig["direction"]
+        has_pos = pos and pos.get("direction")
+        pos_dir = pos.get("direction") if has_pos else None
+
+        if has_pos and sig_dir == pos_dir:
+            badge = "badge-signal-hold"
+            txt = "继续持有"
+            action_note = f"已于 {pos.get('entry_time','')[:10] if pos.get('entry_time') else '—'} 入场，与信号方向一致"
+        elif sig_dir == "LONG":
             badge = "badge-signal-buy"
             txt = "买入做多"
-        elif sig["direction"] == "SHORT":
+            action_note = ""
+        elif sig_dir == "SHORT":
             badge = "badge-signal-sell"
             txt = "卖出做空"
+            action_note = ""
         else:
             badge = "badge-signal-wait"
             txt = "观望等待"
+            action_note = ""
+        hold_note = ""
+        if action_note:
+            hold_note = f'<div style="margin-top:6px;font-size:11px;color:{BLUE};">{action_note}</div>'
         st.markdown(f"""
         <div style="background:{CARD};border:1px solid {BORDER};border-radius:8px;padding:16px;">
             <div style="display:flex;align-items:center;gap:12px;">
@@ -303,6 +318,7 @@ with col_sig:
                 依据: {sig.get('reason','—').replace('_',' ').title()}<br>
                 触发价: ${sig['price']:,.2f} · {sig.get('timestamp','')[:10]}
             </div>
+            {hold_note}
         </div>
         """, unsafe_allow_html=True)
     else:
