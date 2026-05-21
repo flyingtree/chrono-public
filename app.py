@@ -330,72 +330,65 @@ with col_sig:
         """, unsafe_allow_html=True)
 
 # =============================================================================
-# About — CHRONO mission
-# =============================================================================
-st.markdown(f"""
-<div style="background:linear-gradient(135deg, #1a1f35 0%, #161b22 100%); border:1px solid #30363d; border-radius:12px; padding:20px 24px; margin-bottom:20px;">
-    <p style="color:{TEXT}; font-size:13px; line-height:1.8; margin:0;">
-        We believe financial markets are not a random walk. Market movements are beautifully synchronized and in perfect resonance with cosmic cycles, forming a harmonic fractal across time.<br><br>
-        <strong style="color:#f0f6fc;">CHRONO</strong> is a professional-grade market timing tool designed to help traders decode these geometric reflections. By translating complex cyclical frequencies into precise, actionable timing data, we empower your financial trading and elevate your market strategies. Welcome to our shared journey of discovery.
-    </p>
-</div>
-""", unsafe_allow_html=True)
-
-# =============================================================================
-# Pivot forecast — 公开仅展示未来 2 个月，完整数据付费获取
+# Pivot forecast — 表格形式，未来 2 个月，完整数据付费获取
 # =============================================================================
 st.markdown('<div class="section-title">🗓️ 未来 Gann Pivot 转折日预测（未来2个月）</div>', unsafe_allow_html=True)
 pf = state.get("pivot_forecast") if state else None
 if pf and pf.get("a_grade"):
     a_zones = pf["a_grade"]
-    # Group by month
-    months: dict[str, list] = {}
+    # Collect all A-grade zones, keep only first 2 months
+    all_zones = []
+    cutoff = None
     for z in a_zones:
         peak = z.get("peak_date", "")
-        if peak:
-            peak_str = str(peak)
-            try:
-                if "T" in peak_str:
-                    dt = datetime.fromisoformat(peak_str.replace("Z", "+00:00"))
-                else:
-                    dt = datetime.strptime(peak_str[:10], "%Y-%m-%d")
-                month_key = dt.strftime("%Y年%m月")
-            except ValueError:
-                month_key = peak_str[:7]
-            months.setdefault(month_key, []).append(z)
+        if not peak:
+            continue
+        peak_str = str(peak)
+        try:
+            if "T" in peak_str:
+                dt = datetime.fromisoformat(peak_str.replace("Z", "+00:00"))
+            else:
+                dt = datetime.strptime(peak_str[:10], "%Y-%m-%d")
+        except ValueError:
+            continue
+        if cutoff is None:
+            from dateutil.relativedelta import relativedelta
+            cutoff = dt + relativedelta(months=2)
+        if cutoff and dt > cutoff:
+            continue
+        all_zones.append((dt, z))
 
-    sorted_months = sorted(months.keys())
-    for mk in sorted_months[:2]:
-        zones = months[mk]
-        cards_html = ""
-        for z in zones[:8]:
-            peak_date = str(z.get("peak_date", ""))[:10]
+    all_zones.sort(key=lambda x: x[0])
+
+    if all_zones:
+        table_rows = ""
+        for dt, z in all_zones:
+            peak_date = dt.strftime("%m-%d")
             date_range = str(z.get("date_range", ""))
             score = z.get("score", 0)
-            time_score = z.get("time_score", 0)
             price_zone = z.get("price_zone", "")
             triggers = z.get("convergence_desc", "")
             grade = z.get("grade", "")
+            grade_badge = '<span class="badge badge-grade-a">A级</span>' if grade == "A" else '<span class="badge badge-grade-a" style="background:#1c2128;">B级</span>'
 
-            grade_badge = ""
-            if grade == "A":
-                grade_badge = '<span class="badge badge-grade-a">A级</span>'
-            elif grade == "B":
-                grade_badge = '<span class="badge badge-grade-a" style="background:#1c2128;">B级</span>'
-
-            cards_html += f"""
-            <div class="pivot-card">
-                <div class="date">{peak_date} {grade_badge}</div>
-                <div class="range">📅 {date_range}</div>
-                <div class="meta">⭐ {score}分 · ⏱ {time_score}分 · 💰 {price_zone}</div>
-                <div class="meta" style="color:{BLUE};">{triggers}</div>
-            </div>
-            """
+            table_rows += f"""
+            <tr>
+                <td style="font-weight:600;">{peak_date}</td>
+                <td>{grade_badge}</td>
+                <td style="font-size:11px;color:{LABEL};">{date_range}</td>
+                <td style="color:{YELLOW};">{score}分</td>
+                <td style="color:{BLUE};">{price_zone}</td>
+                <td style="font-size:11px;color:{LABEL};">{triggers}</td>
+            </tr>"""
 
         st.markdown(f"""
-        <div class="pivot-month">
-            <h3>📅 {mk}</h3>
-            <div class="pivot-grid">{cards_html}</div>
+        <div class="table-wrap">
+        <table>
+            <thead><tr>
+                <th>日期</th><th>级别</th><th>共振窗口</th><th>评分</th><th>价格区间</th><th>触发原因</th>
+            </tr></thead>
+            <tbody>{table_rows}</tbody>
+        </table>
         </div>
         """, unsafe_allow_html=True)
 
@@ -517,6 +510,18 @@ if trade_log and trade_log.get("backtest_summary"):
             </table>
         </div>
         """, unsafe_allow_html=True)
+
+# =============================================================================
+# About — CHRONO 背景说明
+# =============================================================================
+st.markdown(f"""
+<div style="background:linear-gradient(135deg, #1a1f35 0%, #161b22 100%); border:1px solid #30363d; border-radius:12px; padding:20px 24px; margin-bottom:16px;">
+    <p style="color:{TEXT}; font-size:12px; line-height:1.8; margin:0;">
+        We believe financial markets are not a random walk. Market movements are beautifully synchronized and in perfect resonance with cosmic cycles, forming a harmonic fractal across time.<br><br>
+        <strong style="color:#f0f6fc;">CHRONO</strong> is a professional-grade market timing tool designed to help traders decode these geometric reflections. By translating complex cyclical frequencies into precise, actionable timing data, we empower your financial trading and elevate your market strategies. Welcome to our shared journey of discovery.
+    </p>
+</div>
+""", unsafe_allow_html=True)
 
 # =============================================================================
 # CTA — call to action
