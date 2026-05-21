@@ -1,8 +1,8 @@
 {
-  "generated_at": "2026-05-21 12:47:42",
+  "generated_at": "2026-05-21 13:46:49",
   "symbol": "ZEC-USD",
   "mode": "testnet",
-  "current_price": 674.03,
+  "current_price": 670.71,
   "price_change_24h_pct": 0.0,
   "live_trades": [
     {
@@ -46,7 +46,7 @@
     }
   ],
   "live_summary": {
-    "equity": 11195.51,
+    "equity": 11177.61,
     "available_cash": 7562.49,
     "total_pnl": 2.75,
     "closed_trades": 2,
@@ -54,16 +54,16 @@
   },
   "backtest_summary": {
     "initial_capital": 10000.0,
-    "final_equity": 44253.87,
-    "total_return_pct": 342.54,
-    "buy_hold_return_pct": 1275.18,
-    "excess_return_pct": -932.64,
-    "sharpe": 2.95,
+    "final_equity": 44205.3,
+    "total_return_pct": 342.05,
+    "buy_hold_return_pct": 1269.52,
+    "excess_return_pct": -927.46,
+    "sharpe": 2.94,
     "max_drawdown_pct": 35.56,
     "win_rate": 100.0,
     "profit_factor": 999.99,
     "num_trades": 2,
-    "avg_trade_pnl_pct": 457.09,
+    "avg_trade_pnl_pct": 456.54,
     "period_start": "2025-05-22",
     "period_end": "2026-05-21"
   },
@@ -83,13 +83,13 @@
     },
     {
       "entry_time": "2026-03-19 00:00:00",
-      "exit_time": "2026-05-21 12:46:09",
+      "exit_time": "2026-05-21 13:45:15",
       "symbol": "ZEC-USD",
       "direction": "LONG",
       "entry_price": 248.89,
-      "exit_price": 672.97,
-      "pnl": 7413.22,
-      "pnl_pct": 170.39,
+      "exit_price": 670.2,
+      "pnl": 7364.75,
+      "pnl_pct": 169.28,
       "entry_reason": "03.18 A级Pivot早期入场",
       "exit_reason": "backtest_end",
       "status": "CLOSED"
@@ -1070,7 +1070,7 @@
     },
     {
       "date": "2026-05-21",
-      "equity": 44253.87
+      "equity": 44205.3
     }
   ]
 }
