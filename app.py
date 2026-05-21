@@ -243,7 +243,7 @@ for ci, (label, value, sub, cls) in enumerate(cards_data):
 # Current position + latest signal
 # =============================================================================
 pos = state.get("position") if state else None
-col_pos, col_sig = st.columns(2)
+col_pos, col_sig = st.columns([2.2, 1])
 
 with col_pos:
     st.markdown('<div class="section-title">📌 当前持仓</div>', unsafe_allow_html=True)
