@@ -192,19 +192,7 @@ with col_p:
 st.divider()
 
 # =============================================================================
-# About — CHRONO mission
-# =============================================================================
-st.markdown(f"""
-<div style="background:linear-gradient(135deg, #1a1f35 0%, #161b22 100%); border:1px solid #30363d; border-radius:12px; padding:20px 24px; margin-bottom:20px;">
-    <p style="color:{TEXT}; font-size:13px; line-height:1.8; margin:0;">
-        We believe financial markets are not a random walk. Market movements are beautifully synchronized and in perfect resonance with cosmic cycles, forming a harmonic fractal across time.<br><br>
-        <strong style="color:#f0f6fc;">CHRONO</strong> is a professional-grade market timing tool designed to help traders decode these geometric reflections. By translating complex cyclical frequencies into precise, actionable timing data, we empower your financial trading and elevate your market strategies. Welcome to our shared journey of discovery.
-    </p>
-</div>
-""", unsafe_allow_html=True)
-
-# =============================================================================
-# Performance cards
+# Performance cards — 算法绩效核心指标，页面最显眼位置
 # =============================================================================
 if trade_log:
     s = trade_log.get("backtest_summary", {})
@@ -311,9 +299,21 @@ with col_sig:
         """, unsafe_allow_html=True)
 
 # =============================================================================
-# Pivot forecast
+# About — CHRONO mission
 # =============================================================================
-st.markdown('<div class="section-title">🗓️ 未来 Gann Pivot 转折日预测</div>', unsafe_allow_html=True)
+st.markdown(f"""
+<div style="background:linear-gradient(135deg, #1a1f35 0%, #161b22 100%); border:1px solid #30363d; border-radius:12px; padding:20px 24px; margin-bottom:20px;">
+    <p style="color:{TEXT}; font-size:13px; line-height:1.8; margin:0;">
+        We believe financial markets are not a random walk. Market movements are beautifully synchronized and in perfect resonance with cosmic cycles, forming a harmonic fractal across time.<br><br>
+        <strong style="color:#f0f6fc;">CHRONO</strong> is a professional-grade market timing tool designed to help traders decode these geometric reflections. By translating complex cyclical frequencies into precise, actionable timing data, we empower your financial trading and elevate your market strategies. Welcome to our shared journey of discovery.
+    </p>
+</div>
+""", unsafe_allow_html=True)
+
+# =============================================================================
+# Pivot forecast — 公开仅展示未来 2 个月，完整数据付费获取
+# =============================================================================
+st.markdown('<div class="section-title">🗓️ 未来 Gann Pivot 转折日预测（未来2个月）</div>', unsafe_allow_html=True)
 pf = state.get("pivot_forecast") if state else None
 if pf and pf.get("a_grade"):
     a_zones = pf["a_grade"]
@@ -334,7 +334,7 @@ if pf and pf.get("a_grade"):
             months.setdefault(month_key, []).append(z)
 
     sorted_months = sorted(months.keys())
-    for mk in sorted_months[:6]:
+    for mk in sorted_months[:2]:
         zones = months[mk]
         cards_html = ""
         for z in zones[:8]:
@@ -374,6 +374,13 @@ if pf and pf.get("a_grade"):
             for z in pf["b_grade"]:
                 b_items += f'<span style="color:{LABEL};font-size:11px;">{str(z.get("peak_date",""))[:10]} ({z.get("score",0)}分)</span> · '
             st.markdown(b_items.rstrip(" · "), unsafe_allow_html=True)
+
+    st.markdown(f"""
+    <div style="background:{CARD};border:1px dashed {BORDER};border-radius:8px;padding:14px;margin-top:12px;text-align:center;">
+        <span style="color:{LABEL};font-size:12px;">🔒 完整 12 个月 Pivot 预测 & 多资产分析 — </span>
+        <a href="https://t.me/yourchannel" target="_blank" style="color:{BLUE};font-size:12px;font-weight:600;text-decoration:none;">加入付费频道解锁 →</a>
+    </div>
+    """, unsafe_allow_html=True)
 
 else:
     st.markdown(f"""
