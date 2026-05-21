@@ -1,9 +1,9 @@
 {
-  "generated_at": "2026-05-21 15:59:07",
+  "generated_at": "2026-05-21 16:16:57",
   "symbol": "ZEC-USD",
   "mode": "testnet",
-  "current_price": 665.16,
-  "price_change_24h_pct": -0.85,
+  "current_price": 669.12,
+  "price_change_24h_pct": -0.26,
   "live_trades": [
     {
       "entry_time": "2026-05-20 01:07:20",
@@ -46,7 +46,7 @@
     }
   ],
   "live_summary": {
-    "equity": 11147.7,
+    "equity": 11169.04,
     "available_cash": 7562.49,
     "total_pnl": 2.75,
     "closed_trades": 2,
@@ -54,28 +54,93 @@
   },
   "performance_curve": [
     {
-      "date": "2026-05-19",
+      "date": "05-19 00:00",
       "buy_hold": 0.0,
-      "strategy": 0.5
+      "strategy": 0.0
     },
     {
-      "date": "2026-05-20",
-      "buy_hold": 16.92,
-      "strategy": 17.36
+      "date": "05-19 04:00",
+      "buy_hold": -0.57,
+      "strategy": 0.0
+    },
+    {
+      "date": "05-19 08:00",
+      "buy_hold": -3.02,
+      "strategy": 0.0
+    },
+    {
+      "date": "05-19 12:00",
+      "buy_hold": -1.1,
+      "strategy": 0.0
+    },
+    {
+      "date": "05-19 16:00",
+      "buy_hold": -0.0,
+      "strategy": -0.24
+    },
+    {
+      "date": "05-19 20:00",
+      "buy_hold": 0.4,
+      "strategy": 0.57
+    },
+    {
+      "date": "05-20 00:00",
+      "buy_hold": 2.88,
+      "strategy": 5.6
+    },
+    {
+      "date": "05-20 04:00",
+      "buy_hold": 2.55,
+      "strategy": 2.56
+    },
+    {
+      "date": "05-20 08:00",
+      "buy_hold": 2.1,
+      "strategy": 2.11
+    },
+    {
+      "date": "05-20 12:00",
+      "buy_hold": 10.83,
+      "strategy": 10.84
+    },
+    {
+      "date": "05-20 16:00",
+      "buy_hold": 18.6,
+      "strategy": 18.61
+    },
+    {
+      "date": "05-20 20:00",
+      "buy_hold": 17.82,
+      "strategy": 17.83
+    },
+    {
+      "date": "05-21 00:00",
+      "buy_hold": 17.81,
+      "strategy": 17.82
+    },
+    {
+      "date": "05-21 04:00",
+      "buy_hold": 16.27,
+      "strategy": 16.28
+    },
+    {
+      "date": "05-21 08:00",
+      "buy_hold": 17.07,
+      "strategy": 17.09
     }
   ],
   "backtest_summary": {
     "initial_capital": 10000.0,
-    "final_equity": 44116.91,
-    "total_return_pct": 341.17,
-    "buy_hold_return_pct": 1259.22,
-    "excess_return_pct": -918.05,
+    "final_equity": 44186.36,
+    "total_return_pct": 341.86,
+    "buy_hold_return_pct": 1267.31,
+    "excess_return_pct": -925.45,
     "sharpe": 2.94,
     "max_drawdown_pct": 35.56,
     "win_rate": 100.0,
     "profit_factor": 999.99,
     "num_trades": 2,
-    "avg_trade_pnl_pct": 455.53,
+    "avg_trade_pnl_pct": 456.32,
     "period_start": "2025-05-22",
     "period_end": "2026-05-21"
   },
@@ -95,13 +160,13 @@
     },
     {
       "entry_time": "2026-03-19 00:00:00",
-      "exit_time": "2026-05-21 15:57:30",
+      "exit_time": "2026-05-21 16:15:03",
       "symbol": "ZEC-USD",
       "direction": "LONG",
       "entry_price": 248.89,
-      "exit_price": 665.16,
-      "pnl": 7276.54,
-      "pnl_pct": 167.25,
+      "exit_price": 669.12,
+      "pnl": 7345.85,
+      "pnl_pct": 168.85,
       "entry_reason": "03.18 A级Pivot早期入场",
       "exit_reason": "backtest_end",
       "status": "CLOSED"
@@ -1086,7 +1151,7 @@
     },
     {
       "date": "2026-05-21",
-      "equity": 44116.91
+      "equity": 44186.36
     }
   ]
 }

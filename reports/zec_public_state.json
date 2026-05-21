@@ -1,10 +1,10 @@
 {
-  "generated_at": "2026-05-21 15:59:07",
+  "generated_at": "2026-05-21 16:16:57",
   "symbol": "ZEC-USD",
   "mode": "testnet",
   "leverage": 1.0,
-  "current_price": 665.16,
-  "price_change_24h_pct": -0.85,
+  "current_price": 669.12,
+  "price_change_24h_pct": -0.26,
   "position": {
     "symbol": "ZEC-USD",
     "direction": "LONG",
@@ -12,12 +12,12 @@
     "entry_price": 572.12,
     "entry_time": "2026-05-19 16:00:00",
     "entry_reason": "cloud_breakout",
-    "current_price": 665.16,
-    "unrealized_pnl_pct": 16.26,
-    "unrealized_pnl_usd": 501.49
+    "current_price": 669.12,
+    "unrealized_pnl_pct": 16.95,
+    "unrealized_pnl_usd": 522.83
   },
   "live_summary": {
-    "equity": 11147.7,
+    "equity": 11169.04,
     "available_cash": 7562.49,
     "total_pnl": 2.75,
     "closed_trades": 2,
@@ -26,7 +26,7 @@
   "latest_signal": {
     "direction": "LONG",
     "strength": 0.85,
-    "price": 665.52,
+    "price": 669.12,
     "reason": "05.21 B级Pivot + cloud_breakout",
     "timestamp": "2026-05-21 00:00:00"
   },
@@ -512,16 +512,16 @@
   },
   "backtest_summary": {
     "initial_capital": 10000.0,
-    "final_equity": 44116.91,
-    "total_return_pct": 341.17,
-    "buy_hold_return_pct": 1259.22,
-    "excess_return_pct": -918.05,
+    "final_equity": 44186.36,
+    "total_return_pct": 341.86,
+    "buy_hold_return_pct": 1267.31,
+    "excess_return_pct": -925.45,
     "sharpe": 2.94,
     "max_drawdown_pct": 35.56,
     "win_rate": 100.0,
     "profit_factor": 999.99,
     "num_trades": 2,
-    "avg_trade_pnl_pct": 455.53,
+    "avg_trade_pnl_pct": 456.32,
     "period_start": "2025-05-22",
     "period_end": "2026-05-21"
   }
