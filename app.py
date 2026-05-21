@@ -488,14 +488,45 @@ if pc and len(pc) >= 2:
             chart_data.append(row)
     if chart_data:
         df = pd.DataFrame(chart_data).set_index("date")
-        # Fill any None gaps
         df = df.ffill()
-        st.line_chart(
-            df,
-            color=["#61666A", "#4ECAA6"],  # gray for buy&hold, mint for CHRONO
+
+        import plotly.graph_objects as go
+        fig = go.Figure()
+        if "Buy & Hold" in df.columns:
+            fig.add_trace(go.Scatter(
+                x=df.index, y=df["Buy & Hold"],
+                mode="lines", name="Buy & Hold",
+                line=dict(color="#61666A", width=1.5),
+                hovertemplate="Buy & Hold: %{y:+.1f}%<extra></extra>",
+            ))
+        if "CHRONO" in df.columns:
+            fig.add_trace(go.Scatter(
+                x=df.index, y=df["CHRONO"],
+                mode="lines", name="CHRONO",
+                line=dict(color="#4ECAA6", width=1.5),
+                hovertemplate="CHRONO: %{y:+.1f}%<extra></extra>",
+            ))
+        fig.update_layout(
             height=300,
-            use_container_width=True,
+            margin=dict(l=0, r=0, t=0, b=0),
+            paper_bgcolor="#141617",
+            plot_bgcolor="#141617",
+            font=dict(color="#8A8F93", size=10, family="JetBrains Mono"),
+            xaxis=dict(showgrid=False, zeroline=False, color="#5A5E63"),
+            yaxis=dict(
+                showgrid=True, gridcolor="#1F2224", gridwidth=1,
+                zeroline=True, zerolinecolor="#1F2224",
+                ticksuffix="%",
+                color="#5A5E63",
+            ),
+            legend=dict(
+                orientation="h", yanchor="top", y=1.12, xanchor="left", x=0,
+                font=dict(color="#8A8F93", size=10, family="Inter"),
+            ),
+            hovermode="x unified",
+            dragmode=False,
         )
+        st.plotly_chart(fig, config={"displayModeBar": False}, use_container_width=True)
         # Compute and display final returns
         if "Buy & Hold" in df.columns and "CHRONO" in df.columns:
             bh_ret = df["Buy & Hold"].iloc[-1]
