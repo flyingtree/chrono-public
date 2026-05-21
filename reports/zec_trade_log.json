@@ -1,9 +1,9 @@
 {
-  "generated_at": "2026-05-21 13:46:49",
+  "generated_at": "2026-05-21 15:32:36",
   "symbol": "ZEC-USD",
   "mode": "testnet",
-  "current_price": 670.71,
-  "price_change_24h_pct": 0.0,
+  "current_price": 667.43,
+  "price_change_24h_pct": -0.51,
   "live_trades": [
     {
       "entry_time": "2026-05-20 01:07:20",
@@ -46,24 +46,36 @@
     }
   ],
   "live_summary": {
-    "equity": 11177.61,
+    "equity": 11159.93,
     "available_cash": 7562.49,
     "total_pnl": 2.75,
     "closed_trades": 2,
     "win_rate": 50.0
   },
+  "performance_curve": [
+    {
+      "date": "2026-05-19",
+      "buy_hold": 10000.0,
+      "strategy": 10000.0
+    },
+    {
+      "date": "2026-05-20",
+      "buy_hold": 11692.07,
+      "strategy": 10002.75
+    }
+  ],
   "backtest_summary": {
     "initial_capital": 10000.0,
-    "final_equity": 44205.3,
-    "total_return_pct": 342.05,
-    "buy_hold_return_pct": 1269.52,
-    "excess_return_pct": -927.46,
+    "final_equity": 44156.72,
+    "total_return_pct": 341.57,
+    "buy_hold_return_pct": 1263.86,
+    "excess_return_pct": -922.29,
     "sharpe": 2.94,
     "max_drawdown_pct": 35.56,
     "win_rate": 100.0,
     "profit_factor": 999.99,
     "num_trades": 2,
-    "avg_trade_pnl_pct": 456.54,
+    "avg_trade_pnl_pct": 455.98,
     "period_start": "2025-05-22",
     "period_end": "2026-05-21"
   },
@@ -83,13 +95,13 @@
     },
     {
       "entry_time": "2026-03-19 00:00:00",
-      "exit_time": "2026-05-21 13:45:15",
+      "exit_time": "2026-05-21 15:31:01",
       "symbol": "ZEC-USD",
       "direction": "LONG",
       "entry_price": 248.89,
-      "exit_price": 670.2,
-      "pnl": 7364.75,
-      "pnl_pct": 169.28,
+      "exit_price": 667.43,
+      "pnl": 7316.27,
+      "pnl_pct": 168.17,
       "entry_reason": "03.18 A级Pivot早期入场",
       "exit_reason": "backtest_end",
       "status": "CLOSED"
@@ -1069,8 +1081,12 @@
       "equity": 42514.45
     },
     {
+      "date": "2026-05-20",
+      "equity": 44217.0
+    },
+    {
       "date": "2026-05-21",
-      "equity": 44205.3
+      "equity": 44156.72
     }
   ]
 }

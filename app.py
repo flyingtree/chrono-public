@@ -467,27 +467,54 @@ else:
     """, unsafe_allow_html=True)
 
 # =============================================================================
-# Equity mini chart — simple text summary if no plotly
+# Performance chart — Buy & Hold vs CHRONO Strategy (real PnL)
 # =============================================================================
-if trade_log and trade_log.get("equity_curve"):
-    eq = trade_log["equity_curve"]
-    if len(eq) >= 2:
-        start_eq = eq[0]["equity"]
-        end_eq = eq[-1]["equity"]
-        st.markdown(f"""
-        <div style="background:{CARD};border:1px solid {BORDER};border-radius:8px;padding:16px;margin-top:16px;">
-            <div style="font-size:10px;color:{LABEL};text-transform:uppercase;letter-spacing:0.5px;">权益曲线</div>
-            <div style="font-size:14px;color:{TEXT};margin-top:4px;">
-                ${start_eq:,.0f} → ${end_eq:,.0f}
-                <span class="{'g' if end_eq>=start_eq else 'r'}" style="font-weight:600;margin-left:8px;">
-                    {'+' if end_eq>=start_eq else ''}{(end_eq/start_eq - 1) * 100:.1f}%
-                </span>
-            </div>
-            <div style="font-size:10px;color:{SUB};margin-top:2px;">
-                {eq[0]['date']} → {eq[-1]['date']} · {len(eq)} 个交易日
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
+pc = trade_log.get("performance_curve") if trade_log else None
+if pc and len(pc) >= 2:
+    st.markdown('<div class="section-title">📈 实盘回报曲线 · 策略 vs 买入持有</div>', unsafe_allow_html=True)
+    chart_data = []
+    for pt in pc:
+        row = {}
+        d = pt.get("date", "")
+        if d:
+            row["date"] = pd.to_datetime(d)
+        bh = pt.get("buy_hold")
+        stv = pt.get("strategy")
+        if bh is not None:
+            row["Buy & Hold"] = bh
+        if stv is not None:
+            row["CHRONO"] = stv
+        if row:
+            chart_data.append(row)
+    if chart_data:
+        df = pd.DataFrame(chart_data).set_index("date")
+        # Fill any None gaps
+        df = df.ffill()
+        st.line_chart(
+            df,
+            color=["#61666A", "#4ECAA6"],  # gray for buy&hold, mint for CHRONO
+            height=300,
+            use_container_width=True,
+        )
+        # Compute and display final returns
+        if "Buy & Hold" in df.columns and "CHRONO" in df.columns:
+            bh_start = df["Buy & Hold"].iloc[0]
+            bh_end = df["Buy & Hold"].iloc[-1]
+            st_start = df["CHRONO"].iloc[0]
+            st_end = df["CHRONO"].iloc[-1]
+            bh_ret = (bh_end / bh_start - 1) * 100
+            st_ret = (st_end / st_start - 1) * 100
+            c1, c2 = st.columns(2)
+            with c1:
+                st.markdown(f"""
+                <div style="font-size:10px;color:{LABEL};text-transform:uppercase;letter-spacing:0.05em;">Buy & Hold</div>
+                <div style="font-size:14px;color:#8A8F93;font-family:'JetBrains Mono',monospace;">{bh_ret:+.1f}%</div>
+                """, unsafe_allow_html=True)
+            with c2:
+                st.markdown(f"""
+                <div style="font-size:10px;color:{LABEL};text-transform:uppercase;letter-spacing:0.05em;">CHRONO 策略</div>
+                <div style="font-size:14px;color:{GREEN};font-family:'JetBrains Mono',monospace;">{st_ret:+.1f}%</div>
+                """, unsafe_allow_html=True)
 
 # =============================================================================
 # Backtest — 策略模型历史回测（参考说明，非实盘）
