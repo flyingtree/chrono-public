@@ -106,58 +106,97 @@ tbody td:first-child, thead th:first-child {{ padding-left: 14px; }}
 
 
 # =============================================================================
-# Data loading — live from Binance (public API, no key needed)
+# Data loading — yfinance 优先 (Streamlit Cloud US-friendly) + Binance 备选
 # =============================================================================
 
-@st.cache_data(ttl=60, show_spinner=False)
-def fetch_live_price(symbol: str) -> dict:
-    """Fetch live price + 24h change from Binance (public, no auth)."""
+def _bars_from_yf(symbol: str, period: str, interval: str) -> pd.DataFrame | None:
+    """Fetch OHLCV from yfinance. Returns DataFrame with DatetimeIndex or None."""
+    try:
+        import yfinance as yf
+        tkr = yf.Ticker(symbol)
+        df = tkr.history(period=period, interval=interval)
+        if df is None or df.empty:
+            return None
+        df = df[["Open","High","Low","Close","Volume"]].copy()
+        return df
+    except Exception:
+        return None
+
+
+def _bars_from_ccxt(symbol: str, timeframe: str, limit: int) -> pd.DataFrame | None:
+    """Fetch OHLCV from Binance CCXT. Returns DataFrame with DatetimeIndex or None."""
     try:
         import ccxt
         ex = ccxt.binance({'enableRateLimit': True})
         ticker = symbol.replace("-USD", "/USDT:USDT")
-        raw = ex.fetch_ohlcv(ticker, '4h', limit=2)
-        if not raw or len(raw) < 2:
-            return {}
-        price = float(raw[-1][4])
-        prev = float(raw[-2][4])
-        change_pct = (price / prev - 1) * 100 if prev > 0 else 0
-        return {"price": round(price, 2), "change_24h_pct": round(change_pct, 2)}
+        raw = ex.fetch_ohlcv(ticker, timeframe, limit=limit)
+        if not raw:
+            return None
+        df = pd.DataFrame(raw, columns=['timestamp','Open','High','Low','Close','Volume'])
+        df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
+        df.set_index('timestamp', inplace=True)
+        return df.astype(float)
     except Exception:
-        return {}
+        return None
 
 
-@st.cache_data(ttl=300, show_spinner="正在从 Binance 拉取实时数据...")
+@st.cache_data(ttl=60, show_spinner=False)
+def fetch_live_price(symbol: str) -> dict:
+    """Live price + 24h change — yfinance first, Binance fallback."""
+    # yfinance
+    df = _bars_from_yf(symbol, period="2d", interval="1d")
+    if df is not None and len(df) >= 2:
+        price = float(df["Close"].iloc[-1])
+        prev = float(df["Close"].iloc[-2])
+        return {"price": round(price, 2), "change_24h_pct": round((price / prev - 1) * 100, 2)}
+
+    # Binance fallback
+    df = _bars_from_ccxt(symbol, "4h", limit=2)
+    if df is not None and len(df) >= 2:
+        price = float(df["Close"].iloc[-1])
+        prev = float(df["Close"].iloc[-2])
+        return {"price": round(price, 2), "change_24h_pct": round((price / prev - 1) * 100, 2)}
+
+    return {}
+
+
+@st.cache_data(ttl=300, show_spinner="正在拉取实时数据...")
 def fetch_strategy_data(symbol: str):
-    """Fetch 4H + 1D bars from Binance and compute Ichimoku cloud state + signal.
+    """Fetch bars + compute Ichimoku cloud state + signal.
 
-    Returns dict with: cloud_4h, cloud_1d, tenkan, kijun, cloud_top, cloud_bottom,
-    below_cloud, above_cloud, signal, pivot_score, bar_time, current_price.
-    Cached 5 min to respect Binance rate limits.
+    yfinance 优先 (works from US-based Streamlit Cloud).
+    Uses 1h bars resampled to 4H for Ichimoku, 1d bars for exit confirmation.
+    Falls back to Binance CCXT if yfinance fails.
     """
-    import ccxt
     import numpy as np
     from algorithms.ichimoku import _calc_ichimoku
 
-    ex = ccxt.binance({'enableRateLimit': True})
-    ticker = symbol.replace("-USD", "/USDT:USDT")
+    bars_4h = None
+    bars_1d = None
 
-    # 4H bars
-    raw_4h = ex.fetch_ohlcv(ticker, '4h', limit=300)
-    bars_4h = pd.DataFrame(raw_4h, columns=['timestamp','Open','High','Low','Close','Volume'])
-    bars_4h['timestamp'] = pd.to_datetime(bars_4h['timestamp'], unit='ms')
-    bars_4h.set_index('timestamp', inplace=True)
-    bars_4h = bars_4h.astype(float)
+    # ---- Try yfinance first ----
+    # 1h bars → resample to 4H (~60 days of hourly needed for 300 4H bars)
+    df_1h = _bars_from_yf(symbol, period="60d", interval="1h")
+    if df_1h is not None and len(df_1h) >= 50:
+        bars_4h = df_1h.resample("4h").agg({
+            "Open": "first", "High": "max", "Low": "min", "Close": "last", "Volume": "sum"
+        }).dropna()
+        if len(bars_4h) < 52:
+            bars_4h = None
 
-    # Daily bars for exit confirmation
-    try:
-        raw_1d = ex.fetch_ohlcv(ticker, '1d', limit=120)
-        bars_1d = pd.DataFrame(raw_1d, columns=['timestamp','Open','High','Low','Close','Volume'])
-        bars_1d['timestamp'] = pd.to_datetime(bars_1d['timestamp'], unit='ms')
-        bars_1d.set_index('timestamp', inplace=True)
-        bars_1d = bars_1d.astype(float)
-    except Exception:
-        bars_1d = None
+    # Daily bars from yfinance
+    df_1d = _bars_from_yf(symbol, period="6mo", interval="1d")
+    if df_1d is not None and len(df_1d) >= 52:
+        bars_1d = df_1d
+
+    # ---- Binance fallback ----
+    if bars_4h is None:
+        bars_4h = _bars_from_ccxt(symbol, "4h", limit=300)
+    if bars_1d is None:
+        bars_1d = _bars_from_ccxt(symbol, "1d", limit=120)
+
+    if bars_4h is None or len(bars_4h) < 52:
+        return {"error": "无法获取K线数据 — 请稍后刷新重试"}
 
     close_4h = bars_4h["Close"]
     high_4h = bars_4h["High"]
@@ -180,12 +219,7 @@ def fetch_strategy_data(symbol: str):
     below_cloud = current_price < cloud_bottom
     in_cloud = not above_cloud and not below_cloud
 
-    if above_cloud:
-        cloud_4h = "above"
-    elif below_cloud:
-        cloud_4h = "below"
-    else:
-        cloud_4h = "in"
+    cloud_4h = "above" if above_cloud else ("below" if below_cloud else "in")
 
     # TK stability (3+ bars)
     tk_stable = (
@@ -195,10 +229,10 @@ def fetch_strategy_data(symbol: str):
     )
 
     # Chikou
-    chikou_val = None
+    chikou_bullish = True
     if current_idx >= 26:
         chikou_val = float(close_4h.iloc[current_idx - 26])
-    chikou_bullish = chikou_val is not None and current_price > chikou_val if chikou_val else True
+        chikou_bullish = current_price > chikou_val
 
     # Daily Ichimoku (exit confirmation)
     cloud_1d = None
@@ -219,12 +253,10 @@ def fetch_strategy_data(symbol: str):
             else:
                 cloud_1d = "in"
 
-    # Signal logic (simplified ZEC trend)
+    # Signal logic
     signal = None
     if below_cloud:
-        daily_confirmed = True
-        if bars_1d is not None:
-            daily_confirmed = daily_below
+        daily_confirmed = True if bars_1d is None else daily_below
         if daily_confirmed:
             signal = {"direction": "CLOSE", "strength": 1.0, "price": round(current_price, 2),
                       "reason": "cloud_breakdown"}
@@ -234,11 +266,6 @@ def fetch_strategy_data(symbol: str):
     elif above_cloud and tk_stable:
         signal = {"direction": "LONG", "strength": 0.65, "price": round(current_price, 2),
                   "reason": "trend_continuation"}
-
-    # Pivot score (simple ATR-based approximation)
-    # Full Gann pivot scoring needs timePriceSquareWeb; use simplified version
-    atr = float(high_4h.iloc[-14:].max() - low_4h.iloc[-14:].min())  # rough ATR
-    pivot_score = None  # needs full gann_pivot_scorer; omit for now
 
     return {
         "signal": signal,
@@ -253,7 +280,6 @@ def fetch_strategy_data(symbol: str):
         "in_cloud": in_cloud,
         "tk_stable": tk_stable,
         "chikou_bullish": chikou_bullish,
-        "pivot_score": pivot_score,
         "current_price": current_price,
         "bar_time": str(bars_4h.index[-1]),
     }
@@ -261,22 +287,15 @@ def fetch_strategy_data(symbol: str):
 
 @st.cache_data(ttl=3600, show_spinner="正在计算 Gann Pivot 预测...")
 def fetch_pivot_forecast(symbol: str):
-    """Compute Gann pivot forecast live from Binance daily data. Cached 1 hour."""
-    import ccxt
+    """Compute Gann pivot forecast — yfinance daily bars first, Binance fallback."""
     from algorithms.pivot_detection import _local_extrema
-    from gann_pivot_scorer import Pivot, FutureZone, scan_future_pivots
+    from gann_pivot_scorer import Pivot, scan_future_pivots
 
-    ex = ccxt.binance({'enableRateLimit': True})
-    ticker = symbol.replace("-USD", "/USDT:USDT")
-    try:
-        raw = ex.fetch_ohlcv(ticker, '1d', limit=365)
-        if not raw or len(raw) < 100:
-            return None
-        bars = pd.DataFrame(raw, columns=['timestamp','Open','High','Low','Close','Volume'])
-        bars['timestamp'] = pd.to_datetime(bars['timestamp'], unit='ms')
-        bars.set_index('timestamp', inplace=True)
-        bars = bars.astype(float)
-    except Exception:
+    bars = _bars_from_yf(symbol, period="1y", interval="1d")
+    if bars is None or len(bars) < 100:
+        bars = _bars_from_ccxt(symbol, "1d", limit=365)
+
+    if bars is None or len(bars) < 100:
         return None
 
     high_vals = bars["High"].tolist()
