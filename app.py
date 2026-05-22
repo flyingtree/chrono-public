@@ -597,6 +597,7 @@ st.markdown("""
 # =============================================================================
 st.markdown(f"""
 <div class="footer">
+    🌐 公网地址: <a href="https://chronotrading.streamlit.app" target="_blank">https://chronotrading.streamlit.app</a><br>
     © 2026 CHRONO | Planetary Journeys: The Market Timing Tool<br>
     本页面仅展示策略绩效，不构成投资建议 · 加密货币交易风险极高<br>
     页面每 60 秒自动刷新 · 最近数据更新: {last_update}
