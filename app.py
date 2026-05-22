@@ -131,22 +131,41 @@ def load_trade_log(symbol: str) -> dict | None:
         return json.load(f)
 
 
-@st.cache_data(ttl=120, show_spinner=False)
+@st.cache_data(ttl=60, show_spinner=False)
 def fetch_live_price(symbol: str) -> dict:
-    """Fetch live price + 24h change from yfinance."""
+    """Fetch live price + 24h change. Binance public API first, yfinance fallback."""
+    ticker_bn = symbol.replace("-USD", "/USDT:USDT")
+    try:
+        import ccxt
+        ex = ccxt.binance({'enableRateLimit': True})
+        raw = ex.fetch_ohlcv(ticker_bn, "1h", limit=25)
+        if raw and len(raw) >= 2:
+            import pandas as pd
+            df = pd.DataFrame(raw, columns=['ts','O','H','L','C','V'])
+            df['ts'] = pd.to_datetime(df['ts'], unit='ms')
+            now_price = float(df['C'].iloc[-1])
+            day_ago = df[df['ts'] <= df['ts'].iloc[-1] - pd.Timedelta(hours=24)]
+            if len(day_ago) > 0:
+                prev_price = float(day_ago['C'].iloc[-1])
+            else:
+                prev_price = float(df['C'].iloc[0])
+            change_pct = (now_price / prev_price - 1) * 100
+            return {"price": round(now_price, 2), "change_24h_pct": round(change_pct, 2)}
+    except Exception:
+        pass
     try:
         import yfinance as yf
         tkr = yf.Ticker(symbol)
         hist = tkr.history(period="2d")
-        if hist is None or len(hist) < 2:
-            return {}
-        close = hist["Close"]
-        price = float(close.iloc[-1])
-        prev = float(close.iloc[-2])
-        change_pct = (price / prev - 1) * 100
-        return {"price": round(price, 2), "change_24h_pct": round(change_pct, 2)}
+        if hist is not None and len(hist) >= 2:
+            close = hist["Close"]
+            price = float(close.iloc[-1])
+            prev = float(close.iloc[-2])
+            change_pct = (price / prev - 1) * 100
+            return {"price": round(price, 2), "change_24h_pct": round(change_pct, 2)}
     except Exception:
-        return {}
+        pass
+    return {}
 
 
 # =============================================================================
