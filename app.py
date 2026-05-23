@@ -132,6 +132,15 @@ def load_trade_log(symbol: str) -> dict | None:
         return json.load(f)
 
 
+@st.cache_data(ttl=600, show_spinner=False)
+def load_portfolio() -> list:
+    path = _REPORTS / "portfolio.json"
+    if not path.exists():
+        return []
+    with open(path, encoding="utf-8") as f:
+        return json.load(f)
+
+
 @st.cache_data(ttl=60, show_spinner=False)
 def fetch_live_price(symbol: str, _ttl_hash: int = 0) -> dict:
     """Fetch live price + 24h change. Binance public API (ticker) first, yfinance fallback.
@@ -587,6 +596,49 @@ st.markdown(f"""
     </p>
 </div>
 """, unsafe_allow_html=True)
+
+# =============================================================================
+# High-Conviction Ideas — public stock picks
+# =============================================================================
+ideas = load_portfolio()
+if ideas:
+    st.markdown('<div class="section-title">High-Conviction Ideas</div>', unsafe_allow_html=True)
+    st.caption("Personal research-driven stock ideas with astrological & technical rationale. Not investment advice.")
+
+    for entry in ideas:
+        ticker = entry.get("ticker", "?")
+        industry = entry.get("industry", "")
+        nature = entry.get("nature", "")
+        reason = entry.get("reason", "")
+        window = entry.get("window", "")
+        status = entry.get("status", "")
+        trigger = entry.get("trigger", "")
+        notes = entry.get("notes", "")[:300] + ("..." if len(entry.get("notes", "")) > 300 else "")
+
+        status_badge = {
+            "已购买": '<span class="badge badge-long">BOUGHT</span>',
+            "未购买": '<span class="badge badge-signal-wait">WATCHING</span>',
+            "已清仓": '<span class="badge badge-short">CLOSED</span>',
+        }.get(status, f'<span class="badge badge-signal-wait">{status}</span>')
+
+        st.markdown(f"""
+        <div style="background:{CARD};border:1px solid {BORDER};border-radius:6px;padding:12px 16px;margin-bottom:8px;">
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:6px;">
+                <span style="font-size:15px;font-weight:700;color:{TEXT};font-family:'JetBrains Mono',monospace;">{ticker}</span>
+                {status_badge}
+                <span style="font-size:10px;color:{LABEL};">{industry}</span>
+                <span style="font-size:10px;color:{PURPLE};">{nature}</span>
+            </div>
+            <div style="font-size:11px;color:{SUB};margin-bottom:4px;">
+                <strong style="color:{YELLOW};">Trigger:</strong> {trigger} &nbsp;|&nbsp;
+                <strong style="color:{BLUE};">Window:</strong> {window}
+            </div>
+            <div style="font-size:11px;color:{TEXT};line-height:1.5;">{reason}</div>
+            <div style="font-size:10px;color:{LABEL};margin-top:6px;line-height:1.4;">{notes}</div>
+        </div>
+        """, unsafe_allow_html=True)
+else:
+    st.info("No conviction ideas published yet.")
 
 # =============================================================================
 # CTA — call to action
