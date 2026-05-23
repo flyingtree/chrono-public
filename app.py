@@ -141,33 +141,47 @@ def load_portfolio() -> list:
         return json.load(f)
 
 
-@st.cache_data(ttl=60, show_spinner=False)
+@st.cache_data(ttl=30, show_spinner=False)
 def fetch_live_price(symbol: str, _ttl_hash: int = 0) -> dict:
-    """Fetch live price + 24h change. Binance public API (ticker) first, yfinance fallback.
-    _ttl_hash is used to bust cache every 60s — pass int(time.time() / 60)."""
-    ticker_bn = symbol.replace("-USD", "/USDT:USDT")
+    """Fetch live price + 24h change. Binance REST API (no auth) → ccxt → yfinance."""
+    import urllib.request, json as _json
+
+    # Binance REST API (no library needed, works everywhere)
+    for pair in [symbol.replace("-USD", "USDT"), symbol.replace("-USD", "USDC")]:
+        try:
+            url = f"https://api.binance.com/api/v3/ticker/24hr?symbol={pair}"
+            req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+            with urllib.request.urlopen(req, timeout=8) as resp:
+                data = _json.loads(resp.read().decode())
+            price = float(data.get("lastPrice", 0))
+            change = float(data.get("priceChangePercent", 0))
+            if price > 0:
+                return {"price": round(price, 2), "change_24h_pct": round(change, 2)}
+        except Exception:
+            continue
+
+    # ccxt backup
     try:
         import ccxt
-        ex = ccxt.binance({'enableRateLimit': True, 'timeout': 10000})
-        t = ex.fetch_ticker(ticker_bn)
-        if t and t.get('last'):
-            now_price = float(t['last'])
-            change_pct = float(t.get('percentage', 0) or 0)
-            return {"price": round(now_price, 2), "change_24h_pct": round(change_pct, 2)}
+        ex = ccxt.binance({"enableRateLimit": True, "timeout": 8000})
+        t = ex.fetch_ticker(symbol.replace("-USD", "/USDT:USDT"))
+        if t and t.get("last"):
+            return {"price": round(float(t["last"]), 2),
+                    "change_24h_pct": round(float(t.get("percentage", 0) or 0), 2)}
     except Exception:
         pass
+
+    # yfinance last resort
     try:
         import yfinance as yf
-        tkr = yf.Ticker(symbol)
-        hist = tkr.history(period="2d")
+        hist = yf.Ticker(symbol).history(period="2d")
         if hist is not None and len(hist) >= 2:
-            close = hist["Close"]
-            price = float(close.iloc[-1])
-            prev = float(close.iloc[-2])
-            change_pct = (price / prev - 1) * 100
-            return {"price": round(price, 2), "change_24h_pct": round(change_pct, 2)}
+            p = float(hist["Close"].iloc[-1])
+            prev = float(hist["Close"].iloc[-2])
+            return {"price": round(p, 2), "change_24h_pct": round((p/prev - 1) * 100, 2)}
     except Exception:
         pass
+
     return {}
 
 
