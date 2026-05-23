@@ -6,6 +6,7 @@ Auto-refreshes every 60 seconds.  Deployed to Streamlit Community Cloud.
 from __future__ import annotations
 
 import json
+import time
 from datetime import datetime
 from pathlib import Path
 
@@ -132,24 +133,17 @@ def load_trade_log(symbol: str) -> dict | None:
 
 
 @st.cache_data(ttl=60, show_spinner=False)
-def fetch_live_price(symbol: str) -> dict:
-    """Fetch live price + 24h change. Binance public API first, yfinance fallback."""
+def fetch_live_price(symbol: str, _ttl_hash: int = 0) -> dict:
+    """Fetch live price + 24h change. Binance public API (ticker) first, yfinance fallback.
+    _ttl_hash is used to bust cache every 60s — pass int(time.time() / 60)."""
     ticker_bn = symbol.replace("-USD", "/USDT:USDT")
     try:
         import ccxt
-        ex = ccxt.binance({'enableRateLimit': True})
-        raw = ex.fetch_ohlcv(ticker_bn, "1h", limit=25)
-        if raw and len(raw) >= 2:
-            import pandas as pd
-            df = pd.DataFrame(raw, columns=['ts','O','H','L','C','V'])
-            df['ts'] = pd.to_datetime(df['ts'], unit='ms')
-            now_price = float(df['C'].iloc[-1])
-            day_ago = df[df['ts'] <= df['ts'].iloc[-1] - pd.Timedelta(hours=24)]
-            if len(day_ago) > 0:
-                prev_price = float(day_ago['C'].iloc[-1])
-            else:
-                prev_price = float(df['C'].iloc[0])
-            change_pct = (now_price / prev_price - 1) * 100
+        ex = ccxt.binance({'enableRateLimit': True, 'timeout': 10000})
+        t = ex.fetch_ticker(ticker_bn)
+        if t and t.get('last'):
+            now_price = float(t['last'])
+            change_pct = float(t.get('percentage', 0) or 0)
             return {"price": round(now_price, 2), "change_24h_pct": round(change_pct, 2)}
     except Exception:
         pass
@@ -174,7 +168,7 @@ def fetch_live_price(symbol: str) -> dict:
 SYMBOL = "ZEC-USD"
 state = load_public_state(SYMBOL)
 trade_log = load_trade_log(SYMBOL)
-live = fetch_live_price(SYMBOL)
+live = fetch_live_price(SYMBOL, _ttl_hash=int(time.time() / 30))
 
 # Merge live price with stored data
 current_price = live.get("price") or (trade_log.get("current_price", 0) if trade_log else 0)
