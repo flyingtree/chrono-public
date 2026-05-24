@@ -1,5 +1,6 @@
 """KAIROS | Planetary Journeys: The Market Timing Tool — Public Portfolio.
 
+Markets are not a random walk — they resonate with cosmic cycles.
 Zero API key.  yfinance (free) for price + local JSON for trade history.
 Auto-refreshes every 60 seconds.  Deployed to Streamlit Community Cloud.
 """
