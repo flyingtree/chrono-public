@@ -1,4 +1,4 @@
-"""CHRONO | Planetary Journeys: The Market Timing Tool — Public Portfolio.
+"""KAIROS | Planetary Journeys: The Market Timing Tool — Public Portfolio.
 
 Zero API key.  yfinance (free) for price + local JSON for trade history.
 Auto-refreshes every 60 seconds.  Deployed to Streamlit Community Cloud.
@@ -31,7 +31,7 @@ TEXT    = "#FFFFFF"  # Primary text
 
 # ---- Page config (MUST be first Streamlit call) ----
 st.set_page_config(
-    page_title="CHRONO | Planetary Journeys: The Market Timing Tool",
+    page_title="KAIROS | Planetary Journeys: The Market Timing Tool",
     page_icon="🪐",
     layout="wide",
     initial_sidebar_state="collapsed",
@@ -206,7 +206,7 @@ last_update = f"{page_time} (价格实时 · 交易记录来自最近回测)"
 col_h, col_p = st.columns([2, 1])
 with col_h:
     st.markdown(
-        '<p class="ticker">🪐 CHRONO · Planetary Journeys: The Market Timing Tool</p>'
+        '<p class="ticker">🪐 KAIROS · Planetary Journeys: The Market Timing Tool</p>'
        f'<p style="font-size:22px;font-weight:600;color:{TEXT};margin:2px 0 4px;">Zcash 趋势跟踪策略</p>'
        f'<p style="font-size:11px;color:{LABEL};">Markets are not a random walk — they resonate with cosmic cycles.</p>',
         unsafe_allow_html=True,
@@ -500,7 +500,7 @@ else:
     """, unsafe_allow_html=True)
 
 # =============================================================================
-# Performance chart — Buy & Hold vs CHRONO Strategy (real PnL)
+# Performance chart — Buy & Hold vs KAIROS Strategy (real PnL)
 # =============================================================================
 pc = trade_log.get("performance_curve") if trade_log else None
 if pc and len(pc) >= 2:
@@ -516,7 +516,7 @@ if pc and len(pc) >= 2:
         if bh is not None:
             row["Buy & Hold"] = bh
         if stv is not None:
-            row["CHRONO"] = stv
+            row["KAIROS"] = stv
         if row:
             chart_data.append(row)
     if chart_data:
@@ -532,12 +532,12 @@ if pc and len(pc) >= 2:
                 line=dict(color="#61666A", width=1.5),
                 hovertemplate="Buy & Hold: %{y:+.1f}%<extra></extra>",
             ))
-        if "CHRONO" in df.columns:
+        if "KAIROS" in df.columns:
             fig.add_trace(go.Scatter(
-                x=df.index, y=df["CHRONO"],
-                mode="lines", name="CHRONO",
+                x=df.index, y=df["KAIROS"],
+                mode="lines", name="KAIROS",
                 line=dict(color="#4ECAA6", width=1.5),
-                hovertemplate="CHRONO: %{y:+.1f}%<extra></extra>",
+                hovertemplate="KAIROS: %{y:+.1f}%<extra></extra>",
             ))
         fig.update_layout(
             height=300,
@@ -561,9 +561,9 @@ if pc and len(pc) >= 2:
         )
         st.plotly_chart(fig, config={"displayModeBar": False}, use_container_width=True)
         # Compute and display final returns
-        if "Buy & Hold" in df.columns and "CHRONO" in df.columns:
+        if "Buy & Hold" in df.columns and "KAIROS" in df.columns:
             bh_ret = df["Buy & Hold"].iloc[-1]
-            st_ret = df["CHRONO"].iloc[-1]
+            st_ret = df["KAIROS"].iloc[-1]
             c1, c2 = st.columns(2)
             with c1:
                 st.markdown(f"""
@@ -572,7 +572,7 @@ if pc and len(pc) >= 2:
                 """, unsafe_allow_html=True)
             with c2:
                 st.markdown(f"""
-                <div style="font-size:10px;color:{LABEL};text-transform:uppercase;letter-spacing:0.05em;">CHRONO 策略</div>
+                <div style="font-size:10px;color:{LABEL};text-transform:uppercase;letter-spacing:0.05em;">KAIROS 策略</div>
                 <div style="font-size:14px;color:{GREEN};font-family:'JetBrains Mono',monospace;">{st_ret:+.1f}%</div>
                 """, unsafe_allow_html=True)
 
@@ -600,13 +600,13 @@ if trade_log and trade_log.get("backtest_summary"):
         """, unsafe_allow_html=True)
 
 # =============================================================================
-# About — CHRONO 背景说明
+# About — KAIROS 背景说明
 # =============================================================================
 st.markdown(f"""
 <div style="background:{CARD}; border:1px solid {BORDER}; border-radius:6px; padding:16px 20px; margin-bottom:12px;">
     <p style="color:{TEXT}; font-size:11px; line-height:1.8; margin:0;">
         We believe financial markets are not a random walk. Market movements are beautifully synchronized and in perfect resonance with cosmic cycles, forming a harmonic fractal across time.<br><br>
-        <strong style="color:{TEXT};">CHRONO</strong> is a professional-grade market timing tool designed to help traders decode these geometric reflections. By translating complex cyclical frequencies into precise, actionable timing data, we empower your financial trading and elevate your market strategies. Welcome to our shared journey of discovery.
+        <strong style="color:{TEXT};">KAIROS</strong> is a professional-grade market timing tool designed to help traders decode these geometric reflections. By translating complex cyclical frequencies into precise, actionable timing data, we empower your financial trading and elevate your market strategies. Welcome to our shared journey of discovery.
     </p>
 </div>
 """, unsafe_allow_html=True)
@@ -662,7 +662,7 @@ st.markdown("""
     <h3>🚀 获取实时信号 + 完整交易指南</h3>
     <p>加入付费频道，第一时间收到 ZEC 买卖信号推送 · 每月 Gann 周期分析报告 · 教育文章</p>
     <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
-        <a href="https://t.me/yourchannel" target="_blank" class="cta-btn" style="background:#58a6ff;">📱 CHRONO | Cycle Trading</a>
+        <a href="https://t.me/yourchannel" target="_blank" class="cta-btn" style="background:#58a6ff;">📱 KAIROS | Cycle Trading</a>
         <a href="mailto:your@email.com" target="_blank" class="cta-btn">📧 咨询订阅</a>
     </div>
     <div style="font-size:10px;color:#484f58;margin-top:12px;">
@@ -676,8 +676,8 @@ st.markdown("""
 # =============================================================================
 st.markdown(f"""
 <div class="footer">
-    🌐 公网地址: <a href="https://chronotrading.streamlit.app" target="_blank">https://chronotrading.streamlit.app</a><br>
-    © 2026 CHRONO | Planetary Journeys: The Market Timing Tool<br>
+    🌐 公网地址: <a href="https://kairostrading.streamlit.app" target="_blank">https://kairostrading.streamlit.app</a><br>
+    © 2026 KAIROS | Planetary Journeys: The Market Timing Tool<br>
     本页面仅展示策略绩效，不构成投资建议 · 加密货币交易风险极高<br>
     页面每 60 秒自动刷新 · 最近数据更新: {last_update}
 </div>
